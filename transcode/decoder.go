@@ -291,15 +291,17 @@ func (d *Decoder) DecodeURL(url string, duration time.Duration, streamType strin
 		args = append(args,
 			"-fflags", "+genpts+igndts+flush_packets",
 			"-live_start_index", "-1",
-			"-probesize", "5000000", // 5MB - much more generous
-			"-analyzeduration", "10000000", // 10 seconds - give it time
+			"-probesize", "5000000", // Larger probe for complex streams
+			"-analyzeduration", "10000000", // More analysis time
 			"-rw_timeout", "30000000", // 30 second read timeout
 			"-timeout", "60000000", // 60 second total timeout
 			"-reconnect", "1",
 			"-reconnect_at_eof", "1",
 			"-reconnect_streamed", "1",
-			"-reconnect_delay_max", "2", // Slower reconnect
+			"-reconnect_delay_max", "2",
 			"-avoid_negative_ts", "make_zero",
+			"-ignore_unknown", "1", // Ignore unknown HLS tags
+			"-allowed_extensions", "ALL", // Allow all file extensions
 		)
 	default:
 		// For unknown stream types, log a warning but continue
