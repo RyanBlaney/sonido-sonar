@@ -289,16 +289,23 @@ func (d *Decoder) DecodeURL(url string, duration time.Duration, streamType strin
 		)
 	case "hls":
 		args = append(args,
+			"-protocol_whitelist", "file,http,https,tcp,tls",
+			"-tls_verify", "0",
 			"-live_start_index", "-1",
 			"-timeout", "60000000",
 			"-rw_timeout", "30000000",
-			"-reconnect", "1",
-			"-reconnect_at_eof", "1",
-			"-reconnect_streamed", "1",
-			"-reconnect_delay_max", "2",
-			"-tls_verify", "0",
-			"-user_agent", "TuneIn-CDN-Benchmark/1.0",
+			"-user_agent", "Mozilla/5.0",
 		)
+
+		// Only add reconnect for TuneIn streams
+		if strings.Contains(url, "tunein") {
+			args = append(args,
+				"-reconnect", "1",
+				"-reconnect_at_eof", "1",
+				"-reconnect_streamed", "1",
+				"-reconnect_delay_max", "2",
+			)
+		}
 	default:
 		// For unknown stream types, log a warning but continue
 		logger.Debug("Unknown stream type, using default settings", logging.Fields{
