@@ -288,10 +288,22 @@ func (d *Decoder) DecodeURL(url string, duration time.Duration, streamType strin
 			"-timeout", "15000000", // 15 second total timeout
 		)
 	case "hls":
-		args = append(args,
-			"-live_start_index", "-1",
-			"-timeout", "60000000",
-		)
+		if strings.Contains(url, "mediapackage") {
+			// AWS MediaPackage specific flags
+			args = append(args,
+				"-live_start_index", "-1",
+				"-timeout", "60000000",
+				"-rw_timeout", "30000000",
+				"-user_agent", "TuneIn-CDN-Benchmark/1.0",
+				"-headers", "Accept: application/vnd.apple.mpegurl",
+			)
+		} else {
+			// Regular HLS streams (minimal flags)
+			args = append(args,
+				"-live_start_index", "-1",
+				"-timeout", "60000000",
+			)
+		}
 	default:
 		// For unknown stream types, log a warning but continue
 		logger.Debug("Unknown stream type, using default settings", logging.Fields{
