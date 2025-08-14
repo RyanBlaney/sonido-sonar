@@ -38,7 +38,7 @@ func (cd *ContentDetector) DetectContentType(audioData *transcode.AudioData) con
 	if audioData.Metadata != nil {
 		metadataType := detectContentTypeFromMetadata(audioData.Metadata)
 		if metadataType != config.ContentUnknown {
-			logger.Info("Content type detected from metadata", logging.Fields{
+			logger.Debug("Content type detected from metadata", logging.Fields{
 				"content_type":     metadataType,
 				"detection_method": "metadata",
 				"source":           getMetadataSource(audioData.Metadata),
@@ -51,7 +51,7 @@ func (cd *ContentDetector) DetectContentType(audioData *transcode.AudioData) con
 	if cd.config.EnableContentDetection && len(audioData.PCM) > 0 {
 		acousticType := cd.DetectFromAudio(audioData.PCM, audioData.SampleRate)
 		if acousticType != config.ContentUnknown {
-			logger.Info("Content type detected from audio analysis", logging.Fields{
+			logger.Debug("Content type detected from audio analysis", logging.Fields{
 				"content_type":     acousticType,
 				"detection_method": "acoustic",
 			})
@@ -94,7 +94,7 @@ func (cd *ContentDetector) DetectFromAudio(pcm []float64, sampleRate int) config
 	// Classify based on features
 	contentType := cd.classifyFromFeatures(features)
 
-	logger.Info("Content type classified from acoustic analysis", logging.Fields{
+	logger.Debug("Content type classified from acoustic analysis", logging.Fields{
 		"content_type": contentType,
 		"confidence":   features.ClassificationConfidence,
 	})
