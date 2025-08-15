@@ -437,30 +437,48 @@ func (aa *AlignmentAnalyzer) calculateCorrelationConfidence(corrResult *Correlat
 		return 0.0
 	}
 
-	// Method 1: Peak correlation magnitude (most important)
+	// Method 1: Peak detection quality (most important for ads)
 	peakMagnitude := math.Abs(corrResult.PeakCorrelation)
 
-	// Method 2: Sharpness score (higher is better)
-	sharpnessScore := math.Min(1.0, corrResult.Sharpness/10.0) // Normalize assuming max ~10
+	// Method 2: Enhanced sharpness scoring (key for ad detection)
+	// Scale and boost sharpness to be more prominent
+	normalizedSharpness := math.Min(1.0, corrResult.Sharpness*30.0) // Increased from 20x to 30x
 
-	// Method 3: SNR score (higher is better)
-	snrScore := math.Min(1.0, corrResult.SNR/30.0) // Normalize assuming good SNR ~30dB
-
-	// Method 4: Peak-to-sidelobe ratio
+	// Method 3: Peak-to-sidelobe ratio (critical for ad scenarios)
 	sidelobeScore := 0.0
 	if corrResult.PeakToSidelobe > 0 && !math.IsInf(corrResult.PeakToSidelobe, 1) {
-		sidelobeScore = math.Min(1.0, corrResult.PeakToSidelobe/20.0) // Normalize assuming good ratio ~20dB
+		// More aggressive scaling for better discrimination
+		sidelobeScore = math.Min(1.0, corrResult.PeakToSidelobe/15.0) // Reduced threshold from 20 to 15
 	}
 
-	// Method 5: Second peak penalty (lower second peak is better)
-	secondPeakPenalty := 1.0
-	if corrResult.SecondPeak != 0 {
+	// Method 4: SNR with adjusted scaling for ad scenarios
+	snrScore := 0.0
+	if corrResult.SNR > 0 {
+		// More lenient SNR requirements since ads can add noise
+		snrScore = math.Min(1.0, corrResult.SNR/20.0) // Reduced from 25 to 20
+	}
+
+	// Method 5: Second peak penalty (more forgiving for ads)
+	secondPeakScore := 1.0
+	if corrResult.SecondPeak != 0 && peakMagnitude > 0 {
 		secondPeakRatio := math.Abs(corrResult.SecondPeak) / peakMagnitude
-		secondPeakPenalty = 1.0 - math.Min(0.5, secondPeakRatio) // Penalize up to 50%
+		// More lenient penalty since ads can create legitimate secondary peaks
+		secondPeakScore = math.Max(0.0, 1.0-secondPeakRatio*0.7) // Reduced penalty from 1.0 to 0.7
 	}
 
-	// Weighted combination emphasizing peak magnitude and sharpness
-	finalConfidence := 0.4*peakMagnitude + 0.25*sharpnessScore + 0.15*snrScore + 0.1*sidelobeScore + 0.1*secondPeakPenalty
+	// Method 6: Minimum peak threshold for ad robustness
+	peakThresholdBonus := 0.0
+	if peakMagnitude >= 0.15 { // Lower threshold for ads
+		peakThresholdBonus = 0.1 // Bonus for meeting minimum threshold
+	}
+
+	// AD-ROBUST WEIGHTING: Emphasize peak characteristics over overall correlation
+	finalConfidence := 0.25*peakMagnitude +
+		0.30*normalizedSharpness +
+		0.20*sidelobeScore +
+		0.10*snrScore +
+		0.10*secondPeakScore +
+		0.05*peakThresholdBonus
 
 	return math.Min(1.0, math.Max(0.0, finalConfidence))
 }
