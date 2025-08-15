@@ -187,24 +187,26 @@ func (aa *AlignmentAnalyzer) calculateSimpleCrossCorrelationQuality(corrResult *
 		return 0.0
 	}
 
-	// Use absolute value of correlation for quality (strength of correlation)
 	peakMagnitude := math.Abs(corrResult.PeakCorrelation)
 
-	// Early exit for very poor correlations
-	if peakMagnitude < 0.1 {
-		return 0.0 // No quality for very weak correlations
+	// Much more lenient early exit
+	if peakMagnitude < 0.05 {
+		return 0.0
 	}
 
-	// Scale sharpness
-	scaledSharpness := corrResult.Sharpness * 20.0
+	// MUCH more aggressive sharpness scaling
+	scaledSharpness := corrResult.Sharpness * 40.0 // Increased from 20.0 to 40.0
 
-	// Add minimum threshold for sharpness
-	if scaledSharpness < 0.05 {
-		return peakMagnitude * 0.3 // Heavily penalize blunt peaks
+	// Very lenient sharpness threshold
+	if scaledSharpness < 0.02 { // Reduced from 0.05
+		return peakMagnitude * 0.7 // Less penalty
 	}
 
-	// Weighted combination
-	quality := 0.6*peakMagnitude + 0.4*math.Min(1.0, scaledSharpness)
+	// Base quality boost
+	baseQuality := 0.1 // Always give 10% base quality
+
+	// Weighted combination with ad-friendly weights
+	quality := 0.45*peakMagnitude + 0.45*math.Min(1.0, scaledSharpness) + baseQuality
 
 	return math.Min(1.0, math.Max(0.0, quality))
 }
@@ -437,48 +439,45 @@ func (aa *AlignmentAnalyzer) calculateCorrelationConfidence(corrResult *Correlat
 		return 0.0
 	}
 
-	// Method 1: Peak detection quality (most important for ads)
+	// Method 1: Peak magnitude
 	peakMagnitude := math.Abs(corrResult.PeakCorrelation)
 
-	// Method 2: Enhanced sharpness scoring (key for ad detection)
-	// Scale and boost sharpness to be more prominent
-	normalizedSharpness := math.Min(1.0, corrResult.Sharpness*30.0) // Increased from 20x to 30x
+	// Method 2: MUCH more aggressive sharpness scaling
+	normalizedSharpness := math.Min(1.0, corrResult.Sharpness*50.0) // Increased from 30x to 50x!
 
-	// Method 3: Peak-to-sidelobe ratio (critical for ad scenarios)
+	// Method 3: Enhanced peak-to-sidelobe scoring
 	sidelobeScore := 0.0
 	if corrResult.PeakToSidelobe > 0 && !math.IsInf(corrResult.PeakToSidelobe, 1) {
-		// More aggressive scaling for better discrimination
-		sidelobeScore = math.Min(1.0, corrResult.PeakToSidelobe/15.0) // Reduced threshold from 20 to 15
+		sidelobeScore = math.Min(1.0, corrResult.PeakToSidelobe/12.0) // More aggressive
 	}
 
-	// Method 4: SNR with adjusted scaling for ad scenarios
+	// Method 4: More lenient SNR
 	snrScore := 0.0
 	if corrResult.SNR > 0 {
-		// More lenient SNR requirements since ads can add noise
-		snrScore = math.Min(1.0, corrResult.SNR/20.0) // Reduced from 25 to 20
+		snrScore = math.Min(1.0, corrResult.SNR/15.0) // Even more lenient
 	}
 
-	// Method 5: Second peak penalty (more forgiving for ads)
+	// Method 5: Very lenient second peak penalty
 	secondPeakScore := 1.0
 	if corrResult.SecondPeak != 0 && peakMagnitude > 0 {
 		secondPeakRatio := math.Abs(corrResult.SecondPeak) / peakMagnitude
-		// More lenient penalty since ads can create legitimate secondary peaks
-		secondPeakScore = math.Max(0.0, 1.0-secondPeakRatio*0.7) // Reduced penalty from 1.0 to 0.7
+		secondPeakScore = math.Max(0.0, 1.0-secondPeakRatio*0.5) // Very light penalty
 	}
 
-	// Method 6: Minimum peak threshold for ad robustness
-	peakThresholdBonus := 0.0
-	if peakMagnitude >= 0.15 { // Lower threshold for ads
-		peakThresholdBonus = 0.1 // Bonus for meeting minimum threshold
+	// Method 6: Base confidence boost for any reasonable peak
+	baseBoost := 0.0
+	if peakMagnitude >= 0.12 { // Lower threshold
+		baseBoost = 0.15 // Significant boost
 	}
 
-	// AD-ROBUST WEIGHTING: Emphasize peak characteristics over overall correlation
-	finalConfidence := 0.25*peakMagnitude +
-		0.30*normalizedSharpness +
-		0.20*sidelobeScore +
+	// VERY AGGRESSIVE WEIGHTING for ad scenarios
+	finalConfidence := 0.20*peakMagnitude +
+		0.40*normalizedSharpness +
+		0.15*sidelobeScore +
 		0.10*snrScore +
 		0.10*secondPeakScore +
-		0.05*peakThresholdBonus
+		0.05 +
+		baseBoost
 
 	return math.Min(1.0, math.Max(0.0, finalConfidence))
 }
