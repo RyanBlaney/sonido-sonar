@@ -174,71 +174,80 @@ func (aa *AlignmentAnalyzer) alignWithCrossCorrelation(query, reference [][]floa
 	result.Similarity = similarity
 
 	result.Confidence = aa.calculateCorrelationConfidence(corrResult)
-	result.AlignmentQuality = aa.calculateCrossCorrelationQuality(corrResult)
+	result.AlignmentQuality = aa.calculateCorrelationQuality(corrResult)
 	result.NoiseLevel = 1.0 - corrResult.SNR/20.0
 
 	return result, nil
 }
 
-func (aa *AlignmentAnalyzer) calculateCrossCorrelationQuality(corrResult *CorrelationResult) float64 {
+func (aa *AlignmentAnalyzer) calculateCorrelationQuality(corrResult *CorrelationResult) float64 {
 	if corrResult == nil {
 		return 0.0
 	}
 
 	peakMagnitude := math.Abs(corrResult.PeakCorrelation)
 
-	// More lenient early exit for ad scenarios
-	if peakMagnitude < 0.04 { // Very low threshold
+	// Reasonable early exit
+	if peakMagnitude < 0.05 {
 		return 0.0
 	}
 
-	// Factor 1: Peak strength quality (most reliable for ads)
-	peakQuality := peakMagnitude // Already in [0,1]
+	// Factor 1: Peak strength quality - scale down high values
+	peakQuality := peakMagnitude
+	if peakQuality > 0.8 {
+		peakQuality = 0.8 + (peakQuality-0.8)*0.5 // Compress values above 80%
+	}
 
-	// Factor 2: Aggressive sharpness scaling
-	scaledSharpness := math.Min(1.0, corrResult.Sharpness*50.0) // Heavy scaling
+	// Factor 2: Moderate sharpness scaling (not as extreme)
+	scaledSharpness := math.Min(1.0, corrResult.Sharpness*25.0) // Reduced from 50x
 	sharpnessQuality := scaledSharpness
 
-	// Factor 3: Peak-to-sidelobe quality
+	// Factor 3: Peak-to-sidelobe quality (moderate scaling)
 	sidelobeQuality := 0.0
 	if corrResult.PeakToSidelobe > 0 && !math.IsInf(corrResult.PeakToSidelobe, 1) {
-		sidelobeQuality = math.Min(1.0, corrResult.PeakToSidelobe/10.0) // Generous scaling
+		sidelobeQuality = math.Min(0.8, corrResult.PeakToSidelobe/15.0) // Cap at 80%
 	}
 
-	// Factor 4: SNR quality (lenient for ads)
+	// Factor 4: SNR quality (moderate)
 	snrQuality := 0.0
 	if corrResult.SNR > 0 {
-		snrQuality = math.Min(1.0, corrResult.SNR/12.0) // Very lenient
+		snrQuality = math.Min(0.7, corrResult.SNR/20.0) // Cap at 70%
 	}
 
-	// Factor 5: Lag reasonableness (penalize extreme boundary lags)
+	// Factor 5: Lag reasonableness (only penalize negative boundary lags)
 	lagQuality := 1.0
 	if aa.maxLag > 0 {
-		lagRatio := math.Abs(float64(corrResult.PeakLag)) / float64(aa.maxLag)
-		if lagRatio > 0.9 { // Only penalize very close to boundary
-			lagQuality = math.Max(0.0, 1.0-(lagRatio-0.9)*5.0) // Steep penalty only at edges
+		// Only penalize negative lags that are close to the boundary (failed alignments)
+		if corrResult.PeakLag < 0 {
+			lagRatio := math.Abs(float64(corrResult.PeakLag)) / float64(aa.maxLag)
+			if lagRatio > 0.9 { // Near negative boundary = no real alignment found
+				lagQuality = math.Max(0.0, 1.0-(lagRatio-0.9)*3.0) // Penalty for failed alignment
+			}
 		}
+		// Positive lags (real broadcast delays) are never penalized
 	}
 
-	// Factor 6: Base quality guarantee
-	baseQuality := 0.15 // Always give 15% base quality
+	// Factor 6: Smaller base quality
+	baseQuality := 0.05 // Reduced from 15% to 5%
 
-	// Factor 7: Peak magnitude bonus
+	// Factor 7: Moderate peak bonuses
 	magnitudeBonus := 0.0
-	if peakMagnitude >= 0.15 {
-		magnitudeBonus = 0.20 // 20% bonus for decent peaks
-	} else if peakMagnitude >= 0.10 {
-		magnitudeBonus = 0.10 // 10% bonus for moderate peaks
+	if peakMagnitude >= 0.7 {
+		magnitudeBonus = 0.15 // Good peaks get 15% bonus
+	} else if peakMagnitude >= 0.4 {
+		magnitudeBonus = 0.10 // Decent peaks get 10% bonus
+	} else if peakMagnitude >= 0.15 {
+		magnitudeBonus = 0.05 // Moderate peaks get 5% bonus
 	}
 
-	// Weighted combination optimized for ad scenarios
-	quality := 0.25*peakQuality + // Peak strength
-		0.30*sharpnessQuality + // Heavy sharpness weight
-		0.10*sidelobeQuality + // Peak clarity
+	// More balanced weighting
+	quality := 0.35*peakQuality + // Primary factor
+		0.25*sharpnessQuality + // Important for ads
+		0.15*sidelobeQuality + // Peak clarity
 		0.10*snrQuality + // Signal quality
-		0.15*lagQuality + // Lag reasonableness
-		baseQuality + // Base guarantee
-		magnitudeBonus // Peak bonus
+		0.10*lagQuality + // Lag reasonableness
+		baseQuality + // Small base
+		magnitudeBonus // Conditional bonus
 
 	return math.Min(1.0, math.Max(0.0, quality))
 }
@@ -502,7 +511,7 @@ func (aa *AlignmentAnalyzer) calculateCorrelationConfidence(corrResult *Correlat
 		baseBoost = 0.18 // Slightly higher boost
 	}
 
-	// VERY AGGRESSIVE WEIGHTING for ad scenarios
+	// Aggressive weighting for ad scenarios
 	finalConfidence := 0.20*peakMagnitude +
 		0.40*normalizedSharpness +
 		0.15*sidelobeScore +
