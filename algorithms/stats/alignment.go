@@ -164,13 +164,13 @@ func (aa *AlignmentAnalyzer) alignWithCrossCorrelation(query, reference [][]floa
 	result.Offset = corrResult.PeakLag * hopSize // Convert frames to samples
 	result.OffsetSeconds = float64(result.Offset) / float64(result.SampleRate)
 
-	// Fix floating-point precision issues
-	similarity := corrResult.PeakCorrelation
-	if similarity > 1.0 {
-		similarity = 1.0
-	} else if similarity < -1.0 {
-		similarity = -1.0
-	}
+	rawCorrelation := corrResult.PeakCorrelation
+
+	// For similarity, we want the strength of correlation (absolute value)
+	// Negative correlations are still "similar" (just inverted)
+	similarity := math.Abs(rawCorrelation)
+	similarity = math.Min(1.0, math.Max(0.0, similarity)) // Clamp to [0,1]
+
 	result.Similarity = similarity
 
 	result.Confidence = aa.calculateCorrelationConfidence(corrResult)
@@ -187,12 +187,21 @@ func (aa *AlignmentAnalyzer) calculateSimpleCrossCorrelationQuality(corrResult *
 		return 0.0
 	}
 
-	// Simple approach: just scale the sharpness to a more reasonable range
-	// Based on your data showing ~0.027-0.076, we can scale up
-	scaledSharpness := corrResult.Sharpness * 20.0 // Scale factor based on your typical values
-
-	// Combine with peak correlation for better quality estimate
+	// Use absolute value of correlation for quality (strength of correlation)
 	peakMagnitude := math.Abs(corrResult.PeakCorrelation)
+
+	// Early exit for very poor correlations
+	if peakMagnitude < 0.1 {
+		return 0.0 // No quality for very weak correlations
+	}
+
+	// Scale sharpness
+	scaledSharpness := corrResult.Sharpness * 20.0
+
+	// Add minimum threshold for sharpness
+	if scaledSharpness < 0.05 {
+		return peakMagnitude * 0.3 // Heavily penalize blunt peaks
+	}
 
 	// Weighted combination
 	quality := 0.6*peakMagnitude + 0.4*math.Min(1.0, scaledSharpness)
