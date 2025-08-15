@@ -44,8 +44,8 @@ type AlignmentFeatures struct {
 	TimeStretch      float64 `json:"time_stretch"`            // Estimated time stretch factor
 
 	// Similarity metrics
-	OverallSimilarity float64            `json:"overall_similarity"` // Combined similarity score
-	FeatureSimilarity map[string]float64 `json:"feature_similarity"` // Per-feature similarity
+	AlignmentSimilarity float64            `json:"alignment_similarity"` // Combined similarity score
+	FeatureSimilarity   map[string]float64 `json:"feature_similarity"`   // Per-feature similarity
 
 	// Quality and consistency
 	AlignmentQuality float64               `json:"alignment_quality"` // Quality of alignment
@@ -170,7 +170,7 @@ func (ae *AlignmentExtractor) ExtractAlignmentFeatures(
 		result.BestAlignment = bestAlignment
 		result.TemporalOffset = bestAlignment.OffsetSeconds
 		result.OffsetConfidence = bestAlignment.Confidence
-		result.OverallSimilarity = bestAlignment.Similarity
+		result.AlignmentSimilarity = bestAlignment.Similarity
 		result.AlignmentQuality = bestAlignment.AlignmentQuality
 		result.Method = bestAlignment.FeatureType
 	}
@@ -211,7 +211,7 @@ func (ae *AlignmentExtractor) ExtractAlignmentFeatures(
 	logger.Debug("Alignment feature extraction completed", logging.Fields{
 		"best_method":             result.Method,
 		"temporal_offset_seconds": result.TemporalOffset,
-		"similarity":              result.OverallSimilarity,
+		"similarity":              result.AlignmentSimilarity,
 		"quality":                 result.AlignmentQuality,
 	})
 
@@ -531,13 +531,13 @@ func (ae *AlignmentExtractor) AlignAudioFiles(
 			FeatureType:     "energy",
 			Success:         true,
 		},
-		TemporalOffset:    result.OffsetSeconds,
-		OffsetConfidence:  result.Confidence,
-		OverallSimilarity: result.Similarity,
-		AlignmentQuality:  result.AlignmentQuality,
-		Method:            "energy_correlation",
-		QueryLength:       float64(len(queryPCM)) / float64(sampleRate),
-		ReferenceLength:   float64(len(referencePCM)) / float64(sampleRate),
+		TemporalOffset:      result.OffsetSeconds,
+		OffsetConfidence:    result.Confidence,
+		AlignmentSimilarity: result.Similarity,
+		AlignmentQuality:    result.AlignmentQuality,
+		Method:              "energy_correlation",
+		QueryLength:         float64(len(queryPCM)) / float64(sampleRate),
+		ReferenceLength:     float64(len(referencePCM)) / float64(sampleRate),
 		FeatureSimilarity: map[string]float64{
 			"energy": result.Similarity,
 		},
@@ -545,7 +545,7 @@ func (ae *AlignmentExtractor) AlignAudioFiles(
 
 	logger.Debug("Audio file alignment completed", logging.Fields{
 		"offset_seconds": alignmentFeatures.TemporalOffset,
-		"similarity":     alignmentFeatures.OverallSimilarity,
+		"similarity":     alignmentFeatures.AlignmentSimilarity,
 		"confidence":     alignmentFeatures.OffsetConfidence,
 	})
 
@@ -564,7 +564,7 @@ func (ae *AlignmentExtractor) GetAlignmentSummary(features *AlignmentFeatures) m
 	summary["status"] = "success"
 	summary["method"] = features.Method
 	summary["offset_seconds"] = features.TemporalOffset
-	summary["similarity_percent"] = features.OverallSimilarity * 100
+	summary["similarity_percent"] = features.AlignmentSimilarity * 100
 	summary["confidence_percent"] = features.OffsetConfidence * 100
 	summary["quality_percent"] = features.AlignmentQuality * 100
 
