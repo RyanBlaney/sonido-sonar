@@ -174,39 +174,71 @@ func (aa *AlignmentAnalyzer) alignWithCrossCorrelation(query, reference [][]floa
 	result.Similarity = similarity
 
 	result.Confidence = aa.calculateCorrelationConfidence(corrResult)
-	result.AlignmentQuality = aa.calculateSimpleCrossCorrelationQuality(corrResult)
+	result.AlignmentQuality = aa.calculateCrossCorrelationQuality(corrResult)
 	result.NoiseLevel = 1.0 - corrResult.SNR/20.0
 
 	return result, nil
 }
 
-// calculateSimpleCrossCorrelationQuality is a simple helper function to get the quality based on the
-// sharpness of the peaks. TODO: replace with comprehensive analysis
-func (aa *AlignmentAnalyzer) calculateSimpleCrossCorrelationQuality(corrResult *CorrelationResult) float64 {
+func (aa *AlignmentAnalyzer) calculateCrossCorrelationQuality(corrResult *CorrelationResult) float64 {
 	if corrResult == nil {
 		return 0.0
 	}
 
 	peakMagnitude := math.Abs(corrResult.PeakCorrelation)
 
-	// Much more lenient early exit
-	if peakMagnitude < 0.05 {
+	// More lenient early exit for ad scenarios
+	if peakMagnitude < 0.04 { // Very low threshold
 		return 0.0
 	}
 
-	// MUCH more aggressive sharpness scaling
-	scaledSharpness := corrResult.Sharpness * 40.0 // Increased from 20.0 to 40.0
+	// Factor 1: Peak strength quality (most reliable for ads)
+	peakQuality := peakMagnitude // Already in [0,1]
 
-	// Very lenient sharpness threshold
-	if scaledSharpness < 0.02 { // Reduced from 0.05
-		return peakMagnitude * 0.7 // Less penalty
+	// Factor 2: Aggressive sharpness scaling
+	scaledSharpness := math.Min(1.0, corrResult.Sharpness*50.0) // Heavy scaling
+	sharpnessQuality := scaledSharpness
+
+	// Factor 3: Peak-to-sidelobe quality
+	sidelobeQuality := 0.0
+	if corrResult.PeakToSidelobe > 0 && !math.IsInf(corrResult.PeakToSidelobe, 1) {
+		sidelobeQuality = math.Min(1.0, corrResult.PeakToSidelobe/10.0) // Generous scaling
 	}
 
-	// Base quality boost
-	baseQuality := 0.1 // Always give 10% base quality
+	// Factor 4: SNR quality (lenient for ads)
+	snrQuality := 0.0
+	if corrResult.SNR > 0 {
+		snrQuality = math.Min(1.0, corrResult.SNR/12.0) // Very lenient
+	}
 
-	// Weighted combination with ad-friendly weights
-	quality := 0.45*peakMagnitude + 0.45*math.Min(1.0, scaledSharpness) + baseQuality
+	// Factor 5: Lag reasonableness (penalize extreme boundary lags)
+	lagQuality := 1.0
+	if aa.maxLag > 0 {
+		lagRatio := math.Abs(float64(corrResult.PeakLag)) / float64(aa.maxLag)
+		if lagRatio > 0.9 { // Only penalize very close to boundary
+			lagQuality = math.Max(0.0, 1.0-(lagRatio-0.9)*5.0) // Steep penalty only at edges
+		}
+	}
+
+	// Factor 6: Base quality guarantee
+	baseQuality := 0.15 // Always give 15% base quality
+
+	// Factor 7: Peak magnitude bonus
+	magnitudeBonus := 0.0
+	if peakMagnitude >= 0.15 {
+		magnitudeBonus = 0.20 // 20% bonus for decent peaks
+	} else if peakMagnitude >= 0.10 {
+		magnitudeBonus = 0.10 // 10% bonus for moderate peaks
+	}
+
+	// Weighted combination optimized for ad scenarios
+	quality := 0.25*peakQuality + // Peak strength
+		0.30*sharpnessQuality + // Heavy sharpness weight
+		0.10*sidelobeQuality + // Peak clarity
+		0.10*snrQuality + // Signal quality
+		0.15*lagQuality + // Lag reasonableness
+		baseQuality + // Base guarantee
+		magnitudeBonus // Peak bonus
 
 	return math.Min(1.0, math.Max(0.0, quality))
 }
@@ -442,7 +474,7 @@ func (aa *AlignmentAnalyzer) calculateCorrelationConfidence(corrResult *Correlat
 	// Method 1: Peak magnitude
 	peakMagnitude := math.Abs(corrResult.PeakCorrelation)
 
-	// Method 2: MUCH more aggressive sharpness scaling
+	// Method 2: aggressive sharpness scaling
 	normalizedSharpness := math.Min(1.0, corrResult.Sharpness*50.0) // Increased from 30x to 50x!
 
 	// Method 3: Enhanced peak-to-sidelobe scoring
@@ -466,8 +498,8 @@ func (aa *AlignmentAnalyzer) calculateCorrelationConfidence(corrResult *Correlat
 
 	// Method 6: Base confidence boost for any reasonable peak
 	baseBoost := 0.0
-	if peakMagnitude >= 0.12 { // Lower threshold
-		baseBoost = 0.15 // Significant boost
+	if peakMagnitude >= 0.10 { // Even lower threshold
+		baseBoost = 0.18 // Slightly higher boost
 	}
 
 	// VERY AGGRESSIVE WEIGHTING for ad scenarios
@@ -476,7 +508,7 @@ func (aa *AlignmentAnalyzer) calculateCorrelationConfidence(corrResult *Correlat
 		0.15*sidelobeScore +
 		0.10*snrScore +
 		0.10*secondPeakScore +
-		0.05 +
+		0.07 +
 		baseBoost
 
 	return math.Min(1.0, math.Max(0.0, finalConfidence))
