@@ -174,10 +174,30 @@ func (aa *AlignmentAnalyzer) alignWithCrossCorrelation(query, reference [][]floa
 	result.Similarity = similarity
 
 	result.Confidence = aa.calculateCorrelationConfidence(corrResult)
-	result.AlignmentQuality = corrResult.Sharpness
+	result.AlignmentQuality = aa.calculateSimpleCrossCorrelationQuality(corrResult)
 	result.NoiseLevel = 1.0 - corrResult.SNR/20.0
 
 	return result, nil
+}
+
+// calculateSimpleCrossCorrelationQuality is a simple helper function to get the quality based on the
+// sharpness of the peaks. TODO: replace with comprehensive analysis
+func (aa *AlignmentAnalyzer) calculateSimpleCrossCorrelationQuality(corrResult *CorrelationResult) float64 {
+	if corrResult == nil {
+		return 0.0
+	}
+
+	// Simple approach: just scale the sharpness to a more reasonable range
+	// Based on your data showing ~0.027-0.076, we can scale up
+	scaledSharpness := corrResult.Sharpness * 20.0 // Scale factor based on your typical values
+
+	// Combine with peak correlation for better quality estimate
+	peakMagnitude := math.Abs(corrResult.PeakCorrelation)
+
+	// Weighted combination
+	quality := 0.6*peakMagnitude + 0.4*math.Min(1.0, scaledSharpness)
+
+	return math.Min(1.0, math.Max(0.0, quality))
 }
 
 // alignWithHybrid combines DTW and cross-correlation
