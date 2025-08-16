@@ -195,23 +195,22 @@ func (aa *AlignmentAnalyzer) calculateCorrelationConfidence(corrResult *Correlat
 	// Factor 1: Peak magnitude with boost for strong correlations
 	peakScore := peakMagnitude
 	if peakMagnitude >= 0.6 {
-		// Give strong peaks extra credit to reach 80-90% range
-		peakScore = peakMagnitude + (peakMagnitude-0.6)*0.5 // Boost strong correlations
+		peakScore = peakMagnitude + (peakMagnitude-0.6)*0.5
 	}
 
 	// Factor 2: Enhanced sharpness scaling
-	sharpnessScore := math.Min(0.9, corrResult.Sharpness*8.0) // Increased from 5x to 8x
+	sharpnessScore := math.Min(0.9, corrResult.Sharpness*8.0)
 
 	// Factor 3: Better sidelobe rewards
 	sidelobeScore := 0.0
 	if corrResult.PeakToSidelobe > 0 && !math.IsInf(corrResult.PeakToSidelobe, 1) {
-		sidelobeScore = math.Min(0.8, corrResult.PeakToSidelobe/15.0) // More generous
+		sidelobeScore = math.Min(0.8, corrResult.PeakToSidelobe/15.0)
 	}
 
 	// Factor 4: Better SNR scaling
 	snrScore := 0.0
 	if corrResult.SNR > 0 {
-		snrScore = math.Min(0.7, corrResult.SNR/25.0) // More generous
+		snrScore = math.Min(0.7, corrResult.SNR/25.0)
 	}
 
 	// Factor 5: Light second peak penalty
@@ -219,7 +218,7 @@ func (aa *AlignmentAnalyzer) calculateCorrelationConfidence(corrResult *Correlat
 	if corrResult.SecondPeak != 0 && peakMagnitude > 0 {
 		secondPeakRatio := math.Abs(corrResult.SecondPeak) / peakMagnitude
 		if secondPeakRatio > 0.7 {
-			secondPeakPenalty = (secondPeakRatio - 0.7) * 0.25 // Lighter penalty
+			secondPeakPenalty = (secondPeakRatio - 0.7) * 0.25
 		}
 	}
 
@@ -240,7 +239,7 @@ func (aa *AlignmentAnalyzer) calculateCorrelationConfidence(corrResult *Correlat
 		excellenceBonus - // Bonus for strong peaks
 		secondPeakPenalty // Penalty for ambiguous peaks
 
-	return math.Min(1.0, math.Max(0.0, confidence))
+	return math.Min(0.95, math.Max(0.0, confidence))
 }
 
 func (aa *AlignmentAnalyzer) calculateCorrelationQuality(corrResult *CorrelationResult) float64 {
@@ -265,7 +264,7 @@ func (aa *AlignmentAnalyzer) calculateCorrelationQuality(corrResult *Correlation
 	// Factor 2: Enhanced sharpness
 	sharpnessQuality := math.Min(0.85, corrResult.Sharpness*5.0)
 
-	// Factor 3: Sidelobe quality
+	// Factor 3: Better sidelobe quality
 	sidelobeQuality := 0.0
 	if corrResult.PeakToSidelobe > 0 && !math.IsInf(corrResult.PeakToSidelobe, 1) {
 		sidelobeQuality = math.Min(0.7, corrResult.PeakToSidelobe/20.0)
@@ -303,6 +302,38 @@ func (aa *AlignmentAnalyzer) calculateCorrelationQuality(corrResult *Correlation
 		lagPenalty // Boundary penalty
 
 	return math.Min(1.0, math.Max(0.0, quality))
+}
+
+// alignWithHybrid combines DTW and cross-correlation
+func (aa *AlignmentAnalyzer) alignWithHybrid(query, reference [][]float64, result *AlignmentResult) (*AlignmentResult, error) {
+	// First, use cross-correlation for coarse alignment
+	corrResult, err := aa.alignWithCrossCorrelation(query, reference, result)
+	if err != nil {
+		return nil, err
+	}
+
+	// If cross-correlation confidence is high, use it
+	if corrResult.Confidence > 0.7 {
+		return corrResult, nil
+	}
+
+	// Otherwise, use DTW for fine alignment
+	dtwResult, err := aa.alignWithDTW(query, reference, result)
+	if err != nil {
+		// Fall back to cross-correlation result
+		return corrResult, nil
+	}
+
+	// Combine results - prefer DTW path but use correlation metrics
+	result.Method = AlignmentHybrid
+	result.DTWResult = dtwResult.DTWResult
+	result.CrossCorrResult = corrResult.CrossCorrResult
+
+	// Weighted combination of confidences
+	result.Confidence = 0.6*dtwResult.Confidence + 0.4*corrResult.Confidence
+	result.Similarity = 0.7*dtwResult.Similarity + 0.3*corrResult.Similarity
+
+	return result, nil
 }
 
 // Helper methods
