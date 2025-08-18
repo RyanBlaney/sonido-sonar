@@ -164,20 +164,144 @@ func (aa *AlignmentAnalyzer) alignWithCrossCorrelation(query, reference [][]floa
 	result.Offset = corrResult.PeakLag * hopSize // Convert frames to samples
 	result.OffsetSeconds = float64(result.Offset) / float64(result.SampleRate)
 
-	// Fix floating-point precision issues
-	similarity := corrResult.PeakCorrelation
-	if similarity > 1.0 {
-		similarity = 1.0
-	} else if similarity < -1.0 {
-		similarity = -1.0
-	}
+	rawCorrelation := corrResult.PeakCorrelation
+
+	// For similarity, we want the strength of correlation (absolute value)
+	// Negative correlations are still "similar" (just inverted)
+	similarity := math.Abs(rawCorrelation)
+	similarity = math.Min(1.0, math.Max(0.0, similarity)) // Clamp to [0,1]
+
 	result.Similarity = similarity
 
 	result.Confidence = aa.calculateCorrelationConfidence(corrResult)
-	result.AlignmentQuality = corrResult.Sharpness
+	result.AlignmentQuality = aa.calculateCorrelationQuality(corrResult)
 	result.NoiseLevel = 1.0 - corrResult.SNR/20.0
 
 	return result, nil
+}
+
+func (aa *AlignmentAnalyzer) calculateCorrelationConfidence(corrResult *CorrelationResult) float64 {
+	if corrResult == nil {
+		return 0.0
+	}
+
+	peakMagnitude := math.Abs(corrResult.PeakCorrelation)
+
+	// Early exit for clearly poor correlations
+	if peakMagnitude < 0.1 {
+		return 0.0
+	}
+
+	// Factor 1: Peak magnitude with boost for strong correlations
+	peakScore := peakMagnitude
+	if peakMagnitude >= 0.6 {
+		peakScore = peakMagnitude + (peakMagnitude-0.6)*0.5
+	}
+
+	// Factor 2: Enhanced sharpness scaling
+	sharpnessScore := math.Min(0.9, corrResult.Sharpness*8.0)
+
+	// Factor 3: Better sidelobe rewards
+	sidelobeScore := 0.0
+	if corrResult.PeakToSidelobe > 0 && !math.IsInf(corrResult.PeakToSidelobe, 1) {
+		sidelobeScore = math.Min(0.8, corrResult.PeakToSidelobe/15.0)
+	}
+
+	// Factor 4: Better SNR scaling
+	snrScore := 0.0
+	if corrResult.SNR > 0 {
+		snrScore = math.Min(0.7, corrResult.SNR/25.0)
+	}
+
+	// Factor 5: Light second peak penalty
+	secondPeakPenalty := 0.0
+	if corrResult.SecondPeak != 0 && peakMagnitude > 0 {
+		secondPeakRatio := math.Abs(corrResult.SecondPeak) / peakMagnitude
+		if secondPeakRatio > 0.7 {
+			secondPeakPenalty = (secondPeakRatio - 0.7) * 0.25
+		}
+	}
+
+	// Factor 6: Bonus for excellent correlations
+	excellenceBonus := 0.0
+	if peakMagnitude >= 0.75 {
+		excellenceBonus = 0.12
+	} else if peakMagnitude >= 0.6 {
+		excellenceBonus = 0.08
+	}
+
+	// Enhanced weighting to reward good alignments
+	confidence := 0.55*peakScore + // Main factor: actual correlation
+		0.22*sharpnessScore + // Secondary: peak sharpness
+		0.12*sidelobeScore + // Sidelobe ratio
+		0.06*snrScore + // SNR
+		0.05*0.15 + // Small base (0.75% total)
+		excellenceBonus - // Bonus for strong peaks
+		secondPeakPenalty // Penalty for ambiguous peaks
+
+	return math.Min(0.95, math.Max(0.0, confidence))
+}
+
+func (aa *AlignmentAnalyzer) calculateCorrelationQuality(corrResult *CorrelationResult) float64 {
+	if corrResult == nil {
+		return 0.0
+	}
+
+	peakMagnitude := math.Abs(corrResult.PeakCorrelation)
+
+	// Early exit for poor correlations
+	if peakMagnitude < 0.08 {
+		return 0.0
+	}
+
+	// Factor 1: Enhanced peak strength scaling
+	peakQuality := peakMagnitude
+	if peakMagnitude >= 0.6 {
+		// Boost quality for strong peaks
+		peakQuality = peakMagnitude + (peakMagnitude-0.6)*0.4
+	}
+
+	// Factor 2: Enhanced sharpness
+	sharpnessQuality := math.Min(0.85, corrResult.Sharpness*5.0)
+
+	// Factor 3: Better sidelobe quality
+	sidelobeQuality := 0.0
+	if corrResult.PeakToSidelobe > 0 && !math.IsInf(corrResult.PeakToSidelobe, 1) {
+		sidelobeQuality = math.Min(0.7, corrResult.PeakToSidelobe/20.0)
+	}
+
+	// Factor 4: Better SNR quality
+	snrQuality := 0.0
+	if corrResult.SNR > 0 {
+		snrQuality = math.Min(0.6, corrResult.SNR/30.0) // More generous
+	}
+
+	// Factor 5: Boundary penalty ONLY for large negative offsets (failed alignments)
+	lagPenalty := 0.0
+	if aa.maxLag > 0 && corrResult.PeakLag < 0 {
+		negativeRatio := math.Abs(float64(corrResult.PeakLag)) / float64(aa.maxLag)
+		if negativeRatio > 0.90 { // Large negative offset = likely failed alignment
+			lagPenalty = (negativeRatio - 0.90) * 4.0
+		}
+	}
+
+	// Factor 6: Quality excellence bonus
+	qualityBonus := 0.0
+	if peakMagnitude >= 0.7 {
+		qualityBonus = 0.10
+	} else if peakMagnitude >= 0.55 {
+		qualityBonus = 0.06
+	}
+
+	// Enhanced weighting
+	quality := 0.50*peakQuality + // Primary: correlation strength
+		0.25*sharpnessQuality + // Important: sharpness
+		0.15*sidelobeQuality + // Sidelobe clarity
+		0.10*snrQuality + // SNR
+		qualityBonus - // Excellence bonus
+		lagPenalty // Boundary penalty
+
+	return math.Min(1.0, math.Max(0.0, quality))
 }
 
 // alignWithHybrid combines DTW and cross-correlation
@@ -254,49 +378,153 @@ func (aa *AlignmentAnalyzer) flatten2DFeatures(features [][]float64) []float64 {
 }
 
 func (aa *AlignmentAnalyzer) calculateSimilarityFromDTW(dtwResult *DTWResult) float64 {
-	// Convert DTW distance to similarity (lower distance = higher similarity)
-	// This is a heuristic transformation
-	maxDistance := math.Sqrt(float64(dtwResult.QueryLength + dtwResult.RefLength))
-	normalizedDist := dtwResult.Distance / maxDistance
-	return math.Max(0, 1.0-normalizedDist)
-}
-
-func (aa *AlignmentAnalyzer) calculateDTWConfidence(dtwResult *DTWResult) float64 {
-	// Confidence based on path characteristics and cost distribution
-	if len(dtwResult.Path) == 0 {
+	if dtwResult == nil {
 		return 0.0
 	}
 
-	// Calculate cost variance along path
-	costs := make([]float64, len(dtwResult.Path))
-	sumCost := 0.0
-	for i, point := range dtwResult.Path {
-		costs[i] = point.Cost
-		sumCost += point.Cost
+	// Method 1: Length-normalized distance similarity
+	avgLength := float64(dtwResult.QueryLength+dtwResult.RefLength) / 2.0
+	if avgLength == 0 {
+		return 0.0
 	}
 
-	meanCost := sumCost / float64(len(costs))
-	variance := 0.0
-	for _, cost := range costs {
-		diff := cost - meanCost
-		variance += diff * diff
-	}
-	variance /= float64(len(costs))
+	normalizedDistance := dtwResult.Distance / avgLength
+	distanceSimilarity := 1.0 / (1.0 + normalizedDistance)
 
-	// Lower variance = higher confidence
-	confidence := 1.0 / (1.0 + variance)
-	return math.Min(1.0, confidence)
+	// Method 2: Path-based similarity
+	pathQuality := aa.calculateDTWQuality(dtwResult)
+
+	// Method 3: Cost-based similarity (inverse of mean cost)
+	meanCost := aa.calculateMeanPathCost(dtwResult.Path)
+	costSimilarity := 1.0 / (1.0 + meanCost)
+
+	// Weighted combination
+	finalSimilarity := 0.5*distanceSimilarity + 0.3*pathQuality + 0.2*costSimilarity
+
+	return math.Min(1.0, math.Max(0.0, finalSimilarity))
 }
 
-func (aa *AlignmentAnalyzer) calculateCorrelationConfidence(corrResult *CorrelationResult) float64 {
-	// Confidence based on peak sharpness and SNR
-	sharpnessWeight := 0.6
-	snrWeight := 0.4
+func (aa *AlignmentAnalyzer) calculateMeanPathCost(path []AlignPoint) float64 {
+	if len(path) == 0 {
+		return 0.0
+	}
 
-	sharpnessConf := math.Min(1.0, corrResult.Sharpness)
-	snrConf := math.Min(1.0, corrResult.SNR/20.0) // Normalize SNR
+	totalCost := 0.0
+	for _, point := range path {
+		totalCost += point.Cost
+	}
 
-	return sharpnessWeight*sharpnessConf + snrWeight*snrConf
+	return totalCost / float64(len(path))
+}
+
+func (aa *AlignmentAnalyzer) calculateDTWConfidence(dtwResult *DTWResult) float64 {
+	if dtwResult == nil || len(dtwResult.Path) == 0 {
+		return 0.0
+	}
+
+	// Method 1: Length-normalized distance with exponential decay
+	avgLength := float64(dtwResult.QueryLength+dtwResult.RefLength) / 2.0
+	if avgLength == 0 {
+		return 0.0
+	}
+
+	// Normalize by average sequence length (this is the key fix!)
+	normalizedDistance := dtwResult.Distance / avgLength
+
+	// Use exponential decay for better confidence mapping
+	confidence1 := math.Exp(-normalizedDistance * 2.0) // Scale factor 2.0 for sensitivity
+
+	// Method 2: Path efficiency based confidence
+	expectedLength := math.Max(float64(dtwResult.QueryLength), float64(dtwResult.RefLength))
+	pathEfficiency := expectedLength / float64(len(dtwResult.Path))
+	pathEfficiency = math.Min(1.0, pathEfficiency) // Clamp to [0,1]
+
+	// Method 3: Cost consistency (improved from variance)
+	costConsistency := aa.calculateCostConsistency(dtwResult.Path)
+
+	// Method 4: Diagonal bias (prefer straight paths)
+	diagonalBias := aa.calculateDiagonalBias(dtwResult.Path)
+
+	// Weighted combination of confidence factors
+	finalConfidence := 0.4*confidence1 + 0.25*pathEfficiency + 0.2*costConsistency + 0.15*diagonalBias
+
+	return math.Min(1.0, math.Max(0.0, finalConfidence))
+}
+
+func (aa *AlignmentAnalyzer) calculateCostConsistency(path []AlignPoint) float64 {
+	if len(path) <= 1 {
+		return 0.0
+	}
+
+	// Calculate moving average of costs to smooth variations
+	windowSize := min(5, len(path)/4) // Adaptive window size
+	windowSize = max(windowSize, 2)
+
+	smoothedCosts := make([]float64, len(path))
+	for i := range path {
+		sum := 0.0
+		count := 0
+
+		// Calculate average in window around current point
+		for j := max(0, i-windowSize/2); j <= min(len(path)-1, i+windowSize/2); j++ {
+			sum += path[j].Cost
+			count++
+		}
+		smoothedCosts[i] = sum / float64(count)
+	}
+
+	// Calculate coefficient of variation of smoothed costs
+	mean := 0.0
+	for _, cost := range smoothedCosts {
+		mean += cost
+	}
+	mean /= float64(len(smoothedCosts))
+
+	if mean <= 1e-10 {
+		return 1.0 // Perfect consistency if all costs are near zero
+	}
+
+	variance := 0.0
+	for _, cost := range smoothedCosts {
+		diff := cost - mean
+		variance += diff * diff
+	}
+	variance /= float64(len(smoothedCosts))
+	stdDev := math.Sqrt(variance)
+
+	coeffOfVariation := stdDev / mean
+
+	// Convert to consistency score (lower CV = higher consistency)
+	consistency := 1.0 / (1.0 + coeffOfVariation)
+	return consistency
+}
+
+func (aa *AlignmentAnalyzer) calculateDiagonalBias(path []AlignPoint) float64 {
+	if len(path) <= 1 {
+		return 1.0
+	}
+
+	diagonalSteps := 0
+	totalSteps := len(path) - 1
+
+	for i := 1; i < len(path); i++ {
+		deltaQuery := path[i].QueryIndex - path[i-1].QueryIndex
+		deltaRef := path[i].RefIndex - path[i-1].RefIndex
+
+		// Count diagonal steps (both indices advance)
+		if deltaQuery > 0 && deltaRef > 0 {
+			diagonalSteps++
+		}
+	}
+
+	if totalSteps == 0 {
+		return 1.0
+	}
+
+	diagonalRatio := float64(diagonalSteps) / float64(totalSteps)
+
+	// Apply sigmoid-like transformation to emphasize higher diagonal ratios
+	return 1.0 / (1.0 + math.Exp(-10.0*(diagonalRatio-0.3))) // Inflection at 30% diagonal
 }
 
 func (aa *AlignmentAnalyzer) calculateAverageOffset(path []AlignPoint) int {
@@ -313,13 +541,78 @@ func (aa *AlignmentAnalyzer) calculateAverageOffset(path []AlignPoint) int {
 }
 
 func (aa *AlignmentAnalyzer) calculateDTWQuality(dtwResult *DTWResult) float64 {
-	qualityMetrics := GetAlignmentQuality(dtwResult)
+	if dtwResult == nil || len(dtwResult.Path) == 0 {
+		return 0.0
+	}
 
-	// Combine various quality metrics
-	efficiency := qualityMetrics["path_efficiency"]
-	diagonal := qualityMetrics["diagonal_ratio"]
+	// Factor 1: Path efficiency (shorter relative path is better)
+	expectedLength := math.Max(float64(dtwResult.QueryLength), float64(dtwResult.RefLength))
+	efficiency := expectedLength / float64(len(dtwResult.Path))
+	efficiency = math.Min(1.0, efficiency)
 
-	return 0.5*efficiency + 0.5*diagonal
+	// Factor 2: Diagonal preference
+	diagonalRatio := aa.calculateDiagonalBias(dtwResult.Path)
+
+	// Factor 3: Path smoothness (fewer direction changes)
+	smoothness := aa.calculatePathSmoothness(dtwResult.Path)
+
+	// Factor 4: Cost monotonicity (costs should be relatively stable)
+	costStability := aa.calculateCostConsistency(dtwResult.Path)
+
+	// Weighted combination
+	quality := 0.3*efficiency + 0.3*diagonalRatio + 0.2*smoothness + 0.2*costStability
+
+	return math.Min(1.0, math.Max(0.0, quality))
+}
+
+func (aa *AlignmentAnalyzer) calculatePathSmoothness(path []AlignPoint) float64 {
+	if len(path) <= 2 {
+		return 1.0
+	}
+
+	directionChanges := 0
+	totalSteps := len(path) - 1
+
+	prevDeltaQuery := 0
+	prevDeltaRef := 0
+
+	for i := 1; i < len(path); i++ {
+		deltaQuery := path[i].QueryIndex - path[i-1].QueryIndex
+		deltaRef := path[i].RefIndex - path[i-1].RefIndex
+
+		// Count direction changes
+		if i > 1 {
+			if (deltaQuery != prevDeltaQuery) || (deltaRef != prevDeltaRef) {
+				directionChanges++
+			}
+		}
+
+		prevDeltaQuery = deltaQuery
+		prevDeltaRef = deltaRef
+	}
+
+	if totalSteps == 0 {
+		return 1.0
+	}
+
+	// Convert to smoothness score
+	smoothnessRatio := 1.0 - float64(directionChanges)/float64(totalSteps)
+	return math.Max(0.0, smoothnessRatio)
+}
+
+// Helper functions
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func (aa *AlignmentAnalyzer) calculatePathStability(path []AlignPoint) float64 {
