@@ -357,48 +357,48 @@ func (fc *FingerprintComparator) compareMFCC(mfcc1, mfcc2 [][]float64, contentTy
 	}
 
 	// Method 2: Sequence-based comparison
-	sequenceSimilarity := fc.compareMFCCSequences(mfcc1, mfcc2)
+	// sequenceSimilarity := fc.compareMFCCSequences(mfcc1, mfcc2)
 
 	// Method3: DTW-based comparison for temporal alignment
-	dtwSimilarity := fc.compareMFCCWithDTW(mfcc1, mfcc2)
+	// dtwSimilarity := fc.compareMFCCWithDTW(mfcc1, mfcc2)
 
-	fmt.Printf("\nStats Similarity: %f\n", statsSimilarity)
-	fmt.Printf("\nSequence Similarity: %f\n", sequenceSimilarity)
-	fmt.Printf("\nDTW Similarity: %f\n", dtwSimilarity)
+	// fmt.Printf("\nStats Similarity: %f\n", statsSimilarity)
+	// fmt.Printf("\nSequence Similarity: %f\n", sequenceSimilarity)
+	// fmt.Printf("\nDTW Similarity: %f\n", dtwSimilarity)
 
 	// Combine the three methods with weights by content type
-	var contentType config.ContentType
-	if contentType1 != contentType2 {
-		contentType = config.ContentMixed
-	}
-	var combinedSimilarity float64
-	switch contentType {
-	case config.ContentMusic:
-		// Music: DTW is crucial for tempo variations, sequence for melody structure
-		// Stats less reliable due to dynamic range compression in different encodings
-		combinedSimilarity = 0.15*statsSimilarity + 0.35*sequenceSimilarity + 0.50*dtwSimilarity
+	/* 	var contentType config.ContentType
+	   	if contentType1 != contentType2 {
+	   		contentType = config.ContentMixed
+	   	}
+	   	var combinedSimilarity float64
+	   	switch contentType {
+	   	case config.ContentMusic:
+	   		// Music: DTW is crucial for tempo variations, sequence for melody structure
+	   		// Stats less reliable due to dynamic range compression in different encodings
+	   		combinedSimilarity = 0.15*statsSimilarity + 0.35*sequenceSimilarity + 0.50*dtwSimilarity
 
-	case config.ContentTalk, config.ContentNews:
-		// Speech: Stats capture spectral envelope (formants), sequence for speech rhythm
-		// DTW handles speaking rate differences between encodings
-		combinedSimilarity = 0.40*statsSimilarity + 0.35*sequenceSimilarity + 0.25*dtwSimilarity
+	   	case config.ContentTalk, config.ContentNews:
+	   		// Speech: Stats capture spectral envelope (formants), sequence for speech rhythm
+	   		// DTW handles speaking rate differences between encodings
+	   		combinedSimilarity = 0.40*statsSimilarity + 0.35*sequenceSimilarity + 0.25*dtwSimilarity
 
-	case config.ContentSports:
-		// Sports: High variance (crowd noise, commentary, music)
-		// DTW most robust for temporal events, stats for ambient characteristics
-		combinedSimilarity = 0.25*statsSimilarity + 0.25*sequenceSimilarity + 0.50*dtwSimilarity
+	   	case config.ContentSports:
+	   		// Sports: High variance (crowd noise, commentary, music)
+	   		// DTW most robust for temporal events, stats for ambient characteristics
+	   		combinedSimilarity = 0.25*statsSimilarity + 0.25*sequenceSimilarity + 0.50*dtwSimilarity
 
-	case config.ContentMixed:
-		// Mixed/Cross-encoding: Conservative weighting, emphasize robust methods
-		// DTW most resilient to encoding artifacts and quality differences
-		combinedSimilarity = 0.20*statsSimilarity + 0.30*sequenceSimilarity + 0.50*dtwSimilarity
+	   	case config.ContentMixed:
+	   		// Mixed/Cross-encoding: Conservative weighting, emphasize robust methods
+	   		// DTW most resilient to encoding artifacts and quality differences
+	   		combinedSimilarity = 0.20*statsSimilarity + 0.30*sequenceSimilarity + 0.50*dtwSimilarity
 
-	default:
-		// Unknown content: Balanced approach with slight DTW preference
-		// Handles MP3 vs HLS compression differences best
-		combinedSimilarity = 0.30*statsSimilarity + 0.30*sequenceSimilarity + 0.40*dtwSimilarity
-	}
-	return combinedSimilarity, 1.0 - combinedSimilarity
+	   	default:
+	   		// Unknown content: Balanced approach with slight DTW preference
+	   		// Handles MP3 vs HLS compression differences best
+	   		combinedSimilarity = 0.30*statsSimilarity + 0.30*sequenceSimilarity + 0.40*dtwSimilarity
+	   	} */
+	return statsSimilarity, 1.0 - statsSimilarity
 }
 
 // compareMFCCSequences compares MFCC using sequence analysis from your algorithms
