@@ -27,10 +27,9 @@ type FeatureSettings struct {
 
 // ComparisonSettings holds comparison-specific configuration
 type ComparisonSettings struct {
-	SimilarityThreshold   float64            `json:"similarity_threshold"`
-	FeatureWeights        map[string]float64 `json:"feature_weights"`
-	UsePerceptualDistance bool               `json:"use_perceptual_distance"`
-	ToleranceFactors      map[string]float64 `json:"tolerance_factors"`
+	SimilarityThreshold float64            `json:"similarity_threshold"`
+	FeatureWeights      map[string]float64 `json:"feature_weights"`
+	ToleranceFactors    map[string]float64 `json:"tolerance_factors"`
 }
 
 // ContentAwareConfigManager centralizes all content-aware configuration
@@ -77,11 +76,10 @@ func (c *ContentAwareConfigManager) GetComparisonConfig(contentType config.Conte
 	}
 
 	return &ComparisonConfig{
-		SimilarityThreshold:   contentSettings.ComparisonSettings.SimilarityThreshold,
-		FeatureWeights:        contentSettings.ComparisonSettings.FeatureWeights,
-		UsePerceptualDistance: contentSettings.ComparisonSettings.UsePerceptualDistance,
-		ToleranceFactors:      contentSettings.ComparisonSettings.ToleranceFactors,
-		ContentType:           contentType,
+		SimilarityThreshold: contentSettings.ComparisonSettings.SimilarityThreshold,
+		FeatureWeights:      contentSettings.ComparisonSettings.FeatureWeights,
+		ToleranceFactors:    contentSettings.ComparisonSettings.ToleranceFactors,
+		ContentType:         contentType,
 	}
 }
 
@@ -126,8 +124,7 @@ func getContentConfigs() map[config.ContentType]ContentSettings {
 				},
 			},
 			ComparisonSettings: ComparisonSettings{
-				SimilarityThreshold:   0.75,
-				UsePerceptualDistance: true,
+				SimilarityThreshold: 0.75,
 				FeatureWeights: map[string]float64{
 					"mfcc":     0.35,
 					"chroma":   0.30,
@@ -161,8 +158,7 @@ func getContentConfigs() map[config.ContentType]ContentSettings {
 				},
 			},
 			ComparisonSettings: ComparisonSettings{
-				SimilarityThreshold:   0.80,
-				UsePerceptualDistance: true,
+				SimilarityThreshold: 0.80,
 				FeatureWeights: map[string]float64{
 					"mfcc":     0.50,
 					"speech":   0.25,
@@ -196,43 +192,7 @@ func getContentConfigs() map[config.ContentType]ContentSettings {
 				},
 			},
 			ComparisonSettings: ComparisonSettings{
-				SimilarityThreshold:   0.78,
-				UsePerceptualDistance: true,
-				FeatureWeights: map[string]float64{
-					"mfcc":     0.45,
-					"speech":   0.30,
-					"spectral": 0.15,
-					"temporal": 0.10,
-				},
-				ToleranceFactors: map[string]float64{
-					"voice":      0.15, // More tolerance for talk shows (multiple speakers)
-					"pace":       0.30, // Allow more pace variation in talk
-					"background": 0.20, // Account for background music/effects
-				},
-			},
-		},
-
-		config.ContentSports: {
-			FeatureSettings: FeatureSettings{
-				EnableMFCC:             true,
-				EnableChroma:           false,
-				EnableSpectralContrast: true,
-				EnableHarmonicFeatures: false,
-				EnableSpeechFeatures:   false,
-				EnableTemporalFeatures: true,
-				MFCCCoefficients:       13,
-				ChromaBins:             12,
-				WindowType:             analyzers.WindowHann,
-				SimilarityWeights: map[string]float64{
-					"mfcc":     0.30,
-					"spectral": 0.25,
-					"temporal": 0.25,
-					"energy":   0.20,
-				},
-			},
-			ComparisonSettings: ComparisonSettings{
-				SimilarityThreshold:   0.70,
-				UsePerceptualDistance: true,
+				SimilarityThreshold: 0.78,
 				FeatureWeights: map[string]float64{
 					"mfcc":     0.30,
 					"spectral": 0.25,
@@ -267,8 +227,7 @@ func getContentConfigs() map[config.ContentType]ContentSettings {
 				},
 			},
 			ComparisonSettings: ComparisonSettings{
-				SimilarityThreshold:   0.72,
-				UsePerceptualDistance: true,
+				SimilarityThreshold: 0.72,
 				FeatureWeights: map[string]float64{
 					"mfcc":     0.30,
 					"spectral": 0.20,
@@ -303,8 +262,7 @@ func getContentConfigs() map[config.ContentType]ContentSettings {
 				},
 			},
 			ComparisonSettings: ComparisonSettings{
-				SimilarityThreshold:   0.75, // Balanced threshold
-				UsePerceptualDistance: true,
+				SimilarityThreshold: 0.75, // Balanced threshold
 				FeatureWeights: map[string]float64{
 					"mfcc":     0.40,
 					"spectral": 0.25,
@@ -321,9 +279,8 @@ func getContentConfigs() map[config.ContentType]ContentSettings {
 
 // ComparisonConfig represents configuration for fingerprint comparison
 type ComparisonConfig struct {
-	SimilarityThreshold   float64            `json:"similarity_threshold"`
-	FeatureWeights        map[string]float64 `json:"feature_weights"`
-	UsePerceptualDistance bool               `json:"use_perceptual_distance"`
-	ToleranceFactors      map[string]float64 `json:"tolerance_factors"`
-	ContentType           config.ContentType `json:"content_type"`
+	SimilarityThreshold float64            `json:"similarity_threshold"`
+	FeatureWeights      map[string]float64 `json:"feature_weights"`
+	ToleranceFactors    map[string]float64 `json:"tolerance_factors"`
+	ContentType         config.ContentType `json:"content_type"`
 }
