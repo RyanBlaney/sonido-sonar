@@ -36,9 +36,9 @@ func (f *FeatureExtractorFactory) CreateExtractor(contentType config.ContentType
 	})
 
 	switch contentType {
-	case config.ContentMusic:
-		logger.Info("Creating music feature extractor")
-		return NewMusicFeatureExtractor(&featureConfig), nil
+	/* case config.ContentMusic:
+	logger.Info("Creating music feature extractor")
+	return NewMusicFeatureExtractor(&featureConfig), nil */
 
 	case config.ContentNews:
 		logger.Info("Creating news feature extractor")
