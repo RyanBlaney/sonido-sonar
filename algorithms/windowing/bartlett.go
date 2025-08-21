@@ -5,7 +5,6 @@ import (
 )
 
 // Bartlett represents a Bartlett (triangular) window function
-// Extracted from your existing generateBartlett implementation
 type Bartlett struct {
 	size         int
 	symmetric    bool
@@ -23,7 +22,6 @@ func NewBartlett(size int, symmetric bool) *Bartlett {
 }
 
 // generate creates Bartlett window coefficients
-// This is your existing working implementation
 func (b *Bartlett) generate() {
 	b.coefficients = make([]float64, b.size)
 

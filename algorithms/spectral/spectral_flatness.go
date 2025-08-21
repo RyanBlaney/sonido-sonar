@@ -4,8 +4,8 @@ import (
 	"math"
 )
 
-// SpectralFlatness computes spectral flatness (Wiener entropy)
-// Critical for distinguishing speech from music - speech has lower flatness
+// SpectralFlatness computes spectral flatness (Wiener entropy).
+// Critical for distinguishing speech from music (speech has lower flatness)
 type SpectralFlatness struct {
 	minThreshold float64 // Minimum value to avoid log(0)
 }

@@ -5,7 +5,6 @@ import (
 )
 
 // Rectangular represents a rectangular (boxcar) window function
-// Extracted from your existing generateRectangular implementation
 type Rectangular struct {
 	size         int
 	coefficients []float64
@@ -21,7 +20,6 @@ func NewRectangular(size int) *Rectangular {
 }
 
 // generate creates rectangular window coefficients
-// This is your existing working implementation
 func (r *Rectangular) generate() {
 	r.coefficients = make([]float64, r.size)
 	for i := range r.coefficients {

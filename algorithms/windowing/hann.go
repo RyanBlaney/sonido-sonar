@@ -6,7 +6,6 @@ import (
 )
 
 // Hann represents a Hann window function
-// Extracted from your existing generateHann implementation
 type Hann struct {
 	size         int
 	symmetric    bool
@@ -24,7 +23,6 @@ func NewHann(size int, symmetric bool) *Hann {
 }
 
 // generate creates Hann window coefficients
-// This is your existing working implementation
 func (h *Hann) generate() {
 	h.coefficients = make([]float64, h.size)
 

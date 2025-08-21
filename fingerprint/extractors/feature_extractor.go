@@ -36,16 +36,16 @@ func (f *FeatureExtractorFactory) CreateExtractor(contentType config.ContentType
 	})
 
 	switch contentType {
-	// case config.ContentMusic:
-	// logger.Debug("Creating music feature extractor")
-	// return NewMusicFeatureExtractor(&featureConfig), nil
+	/* case config.ContentMusic:
+	logger.Info("Creating music feature extractor")
+	return NewMusicFeatureExtractor(&featureConfig), nil */
 
 	case config.ContentNews:
-		logger.Debug("Creating news feature extractor")
+		logger.Info("Creating news feature extractor")
 		return NewSpeechFeatureExtractor(&featureConfig, true), nil
 
 	case config.ContentTalk:
-		logger.Debug("Creating talk feature extractor")
+		logger.Info("Creating talk feature extractor")
 		return NewSpeechFeatureExtractor(&featureConfig, false), nil
 
 	// case config.ContentSports:

@@ -8,8 +8,8 @@ import (
 	"github.com/RyanBlaney/sonido-sonar/algorithms/windowing"
 )
 
-// FormantAnalyzer extracts vocal tract resonances (formants) from speech
-// WHY: Formants are critical for vowel identification, speaker characteristics,
+// FormantAnalyzer extracts vocal tract resonances (formants) from speech.
+// Formants are critical for vowel identification, speaker characteristics,
 // and linguistic content analysis. F1 and F2 primarily determine vowel identity.
 type FormantAnalyzer struct {
 	sampleRate  int

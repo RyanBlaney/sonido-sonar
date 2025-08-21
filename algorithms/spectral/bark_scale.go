@@ -4,10 +4,10 @@ import (
 	"math"
 )
 
-// BarkScale provides bark frequency conversion utilities
+// BarkScale provides bark frequency conversion utilities.
 // Based on critical bands of human auditory perception
 type BarkScale struct {
-	// No state needed - stateless conversion functions
+	// No state needed
 }
 
 // NewBarkScale creates a new bark scale converter

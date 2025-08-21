@@ -7,8 +7,8 @@ import (
 	"github.com/RyanBlaney/sonido-sonar/algorithms/tonal"
 )
 
-// VoiceQualityAnalyzer analyzes voice quality characteristics
-// WHY: Jitter, shimmer, and other voice quality measures are important for
+// VoiceQualityAnalyzer analyzes voice quality characteristics.
+// Jitter, shimmer, and other voice quality measures are important for
 // speaker identification, health assessment, emotion recognition, and audio quality
 type VoiceQualityAnalyzer struct {
 	sampleRate    int
@@ -138,9 +138,7 @@ func (vqa *VoiceQualityAnalyzer) extractPitchPeriodsAndF0(signal []float64) ([][
 
 				// Extract period starting from current position
 				periodStart := i
-				if periodStart < lastPeriodEnd {
-					periodStart = lastPeriodEnd
-				}
+				periodStart = max(periodStart, lastPeriodEnd)
 
 				periodEnd := periodStart + periodLength
 				if periodEnd < len(signal) {
@@ -251,14 +249,12 @@ func (vqa *VoiceQualityAnalyzer) calculateHNR(signal []float64, f0Values []float
 
 	// Take a representative frame
 	startIdx := len(signal)/2 - frameSize/2
-	if startIdx < 0 {
-		startIdx = 0
-	}
+	startIdx = max(startIdx, 0)
 	frame := signal[startIdx : startIdx+frameSize]
 
 	// Calculate autocorrelation
 	autocorr := make([]float64, frameSize)
-	for lag := 0; lag < frameSize; lag++ {
+	for lag := range frameSize {
 		sum := 0.0
 		count := 0
 		for i := 0; i < frameSize-lag; i++ {

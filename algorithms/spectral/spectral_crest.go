@@ -5,9 +5,8 @@ import (
 )
 
 // SpectralCrest computes spectral crest factor (peak-to-RMS ratio)
-// Extracted from your existing calculateSpectralCrest implementation
 type SpectralCrest struct {
-	// No state needed - TODO: highlight the why
+	// No state needed
 }
 
 // NewSpectralCrest creates a new spectral crest calculator
@@ -16,7 +15,6 @@ func NewSpectralCrest() *SpectralCrest {
 }
 
 // Compute calculates spectral crest factor for a single magnitude spectrum
-// This is your existing working implementation
 func (sc *SpectralCrest) Compute(spectrum []float64) float64 {
 	if len(spectrum) == 0 {
 		return 0

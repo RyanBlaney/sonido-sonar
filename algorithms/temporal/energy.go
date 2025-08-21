@@ -6,7 +6,6 @@ import (
 )
 
 // Energy computes various energy-based temporal features
-// This focuses on temporal energy patterns, not duplicating spectral algorithms
 type Energy struct {
 	frameSize  int
 	hopSize    int
@@ -23,7 +22,6 @@ func NewEnergy(frameSize, hopSize, sampleRate int) *Energy {
 }
 
 // ComputeShortTimeEnergy calculates short-time energy for overlapping frames
-// This is the critical function for your alignment needs
 func (e *Energy) ComputeShortTimeEnergy(signal []float64) []float64 {
 	if len(signal) < e.frameSize || e.hopSize <= 0 || e.frameSize <= 0 {
 		return []float64{}

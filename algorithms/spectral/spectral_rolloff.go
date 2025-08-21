@@ -1,7 +1,6 @@
 package spectral
 
 // SpectralRolloff computes spectral rolloff frequency
-// Extracted from your existing working implementation
 type SpectralRolloff struct {
 	sampleRate  int
 	freqBins    []float64 // Pre-calculated frequency bins
@@ -27,7 +26,6 @@ func (sr *SpectralRolloff) Compute(spectrum []float64, threshold float64) float6
 		sr.initializeFreqBins(len(spectrum))
 	}
 
-	// This is your existing working implementation
 	totalEnergy := 0.0
 	for _, mag := range spectrum {
 		totalEnergy += mag * mag
@@ -71,7 +69,7 @@ func (sr *SpectralRolloff) ComputeFrames(spectrogram [][]float64, threshold floa
 	return rolloffs
 }
 
-// initializeFreqBins pre-calculates frequency bins (matches your existing GetFrequencyBins)
+// initializeFreqBins pre-calculates frequency bins
 func (sr *SpectralRolloff) initializeFreqBins(numBins int) {
 	sr.freqBins = make([]float64, numBins)
 	for i := range numBins {

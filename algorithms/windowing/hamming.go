@@ -6,7 +6,6 @@ import (
 )
 
 // Hamming represents a Hamming window function
-// Extracted from your existing generateHamming implementation
 type Hamming struct {
 	size         int
 	symmetric    bool
@@ -24,7 +23,6 @@ func NewHamming(size int, symmetric bool) *Hamming {
 }
 
 // generate creates Hamming window coefficients
-// This is your existing working implementation
 func (h *Hamming) generate() {
 	h.coefficients = make([]float64, h.size)
 

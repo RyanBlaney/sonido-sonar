@@ -5,8 +5,8 @@ import (
 	"math"
 )
 
-// SpeechAnalyzer provides comprehensive speech analysis capabilities
-// WHY: Speech analysis requires multiple specialized algorithms working together
+// SpeechAnalyzer provides comprehensive speech analysis capabilities.
+// Speech analysis requires multiple specialized algorithms working together
 // to extract linguistic, prosodic, and speaker characteristics from audio
 type SpeechAnalyzer struct {
 	sampleRate           int
@@ -301,6 +301,7 @@ func (sa *SpeechAnalyzer) EstimateAge(signal []float64) (string, float64, error)
 		return "unknown", 0.0, err
 	}
 
+	// TODO
 	// Very simple age estimation based on voice quality
 	// This is highly simplified and would need much more sophisticated modeling
 	if voiceResult.Jitter > 3.0 || voiceResult.Shimmer > 8.0 {

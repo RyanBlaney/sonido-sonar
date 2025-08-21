@@ -6,7 +6,6 @@ import (
 )
 
 // Tukey represents a Tukey window function
-// Extracted from your existing generateTukey implementation
 type Tukey struct {
 	size         int
 	alpha        float64
@@ -26,7 +25,6 @@ func NewTukey(size int, alpha float64, symmetric bool) *Tukey {
 }
 
 // generate creates Tukey window coefficients
-// This is your existing working implementation
 func (t *Tukey) generate() {
 	t.coefficients = make([]float64, t.size)
 

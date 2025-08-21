@@ -7,8 +7,8 @@ import (
 	"github.com/RyanBlaney/sonido-sonar/algorithms/stats"
 )
 
-// LPCAnalyzer performs Linear Predictive Coding analysis
-// WHY: LPC models the vocal tract as an all-pole filter, essential for
+// LPCAnalyzer performs Linear Predictive Coding analysis.
+// LPC models the vocal tract as an all-pole filter, essential for
 // formant extraction, speech compression, and vocal tract modeling
 type LPCAnalyzer struct {
 	sampleRate int
@@ -80,8 +80,7 @@ func (lpc *LPCAnalyzer) Analyze(signal []float64) (*LPCResult, error) {
 	}, nil
 }
 
-// levinsonDurbin performs the Levinson-Durbin recursion algorithm
-// WHY: Efficient method to solve the Yule-Walker equations for LPC coefficients
+// levinsonDurbin performs the Levinson-Durbin recursion algorithm.
 func (lpc *LPCAnalyzer) levinsonDurbin(R []float64) ([]float64, []float64, float64, float64, error) {
 	p := lpc.order
 
@@ -192,7 +191,7 @@ func (lpc *LPCAnalyzer) ConvertToReflectionCoeffs(lpcCoeffs []float64) []float64
 		k[i-1] = a[i][i]
 
 		if math.Abs(k[i-1]) >= 1.0 {
-			// Unstable - clamp reflection coefficient
+			// Unstable! Clamp reflection coefficient
 			if k[i-1] >= 1.0 {
 				k[i-1] = 0.99
 			} else {
