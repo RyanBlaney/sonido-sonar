@@ -125,8 +125,8 @@ func (css *ChromaSequenceSimilarity) computeDirectSimilarity(queryChroma, refChr
 	}
 
 	// Compute pairwise similarities
-	for i := 0; i < queryLen; i++ {
-		for j := 0; j < refLen; j++ {
+	for i := range queryLen {
+		for j := range refLen {
 			var sim float64
 
 			if css.params.TranspositionInvariant {
@@ -234,11 +234,12 @@ func (css *ChromaSequenceSimilarity) computeSmithWatermanSimilarity(queryChroma,
 			}
 
 			// Traceback direction
-			if maxVal == match {
+			switch maxVal {
+			case match:
 				traceback[i][j] = 1 // diagonal
-			} else if maxVal == delete {
+			case delete:
 				traceback[i][j] = 2 // up
-			} else if maxVal == insert {
+			case insert:
 				traceback[i][j] = 3 // left
 			}
 		}
@@ -290,8 +291,8 @@ func (css *ChromaSequenceSimilarity) computeDTWSimilarity(queryChroma, refChroma
 	}
 
 	// Compute local costs (distance matrix)
-	for i := 0; i < queryLen; i++ {
-		for j := 0; j < refLen; j++ {
+	for i := range queryLen {
+		for j := range refLen {
 			cost[i][j] = css.vectorAnalyzer.Distance(queryChroma[i], refChroma[j], css.params.DistanceMetric)
 		}
 	}
@@ -375,7 +376,7 @@ func (css *ChromaSequenceSimilarity) computeQMaxSimilarity(queryChroma, refChrom
 		diagonalMax := 0.0
 		diagonalCount++
 
-		for i := 0; i < queryLen; i++ {
+		for i := range queryLen {
 			j := i - d
 			if j >= 0 && j < refLen {
 				if simMatrix[i][j] > diagonalMax {
@@ -405,7 +406,7 @@ func (css *ChromaSequenceSimilarity) computeOTISimilarity(queryChroma, refChroma
 	var bestMatrix [][]float64
 
 	// Try all possible transpositions (0-11 semitones)
-	for shift := 0; shift < 12; shift++ {
+	for shift := range 12 {
 		totalSim := 0.0
 		simMatrix := make([][]float64, queryLen)
 
@@ -414,7 +415,7 @@ func (css *ChromaSequenceSimilarity) computeOTISimilarity(queryChroma, refChroma
 		}
 
 		// Compute similarity with this transposition
-		for i := 0; i < queryLen; i++ {
+		for i := range queryLen {
 			// Apply circular shift to query chroma
 			shiftedQuery := css.vectorAnalyzer.CircularShift(queryChroma[i], shift)
 
@@ -450,7 +451,7 @@ func (css *ChromaSequenceSimilarity) findBestTransposition(queryChroma, refChrom
 	bestShift := 0
 	maxSimilarity := 0.0
 
-	for shift := 0; shift < 12; shift++ {
+	for shift := range 12 {
 		totalSim := 0.0
 		count := 0
 

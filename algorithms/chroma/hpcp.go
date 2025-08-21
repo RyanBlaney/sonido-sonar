@@ -322,7 +322,7 @@ func (h *HPCP) addHarmonicContributions(hpcp []float64, peak harmonic.SpectralPe
 
 // shouldFilterPeak determines if a peak should be filtered based on band preset
 func (h *HPCP) shouldFilterPeak(freq float64) bool {
-	// This is a simplified version - you might want more sophisticated filtering
+	// TODO
 	return false
 }
 
@@ -356,7 +356,7 @@ func (h *HPCP) applyMaxShifted(hpcp []float64) []float64 {
 // computeShiftedCorrelation computes correlation for a given shift
 func (h *HPCP) computeShiftedCorrelation(hpcp []float64, shift int) float64 {
 	corr := 0.0
-	for i := 0; i < len(hpcp); i++ {
+	for i := range len(hpcp) {
 		shiftedIdx := (i + shift) % len(hpcp)
 		corr += hpcp[i] * hpcp[shiftedIdx]
 	}
@@ -366,7 +366,7 @@ func (h *HPCP) computeShiftedCorrelation(hpcp []float64, shift int) float64 {
 // shiftHPCP shifts HPCP vector by given amount
 func (h *HPCP) shiftHPCP(hpcp []float64, shift int) []float64 {
 	shifted := make([]float64, len(hpcp))
-	for i := 0; i < len(hpcp); i++ {
+	for i := range len(hpcp) {
 		shifted[i] = hpcp[(i+shift)%len(hpcp)]
 	}
 	return shifted

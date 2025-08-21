@@ -6,7 +6,6 @@ import (
 )
 
 // Blackman represents a Blackman window function
-// Extracted from your existing generateBlackman implementation
 type Blackman struct {
 	size         int
 	symmetric    bool
@@ -24,7 +23,6 @@ func NewBlackman(size int, symmetric bool) *Blackman {
 }
 
 // generate creates Blackman window coefficients
-// This is your existing working implementation
 func (b *Blackman) generate() {
 	b.coefficients = make([]float64, b.size)
 

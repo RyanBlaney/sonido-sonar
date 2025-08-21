@@ -26,18 +26,16 @@ const (
 
 // SimilarityResult holds the result of fingerprint comparison
 type SimilarityResult struct {
-	OverallSimilarity     float64                   `json:"overall_similarity"` // 0.0-1.0
-	HashSimilarity        float64                   `json:"hash_similarity"`    // Hash-based similarity
-	FeatureSimilarity     float64                   `json:"feature_similarity"` // Feature-based similarity
-	ContentTypeMatch      bool                      `json:"content_type_match"`
-	PerceptualHashMatches map[string]float64        `json:"perceptual_hash_matches"` // Per hash type similarity
-	FeatureDistances      map[string]float64        `json:"feature_distances"`       // Per feature distances
-	QualityMetrics        *ComparisonQualityMetrics `json:"qualtiy_metrics"`         // Comparison quality
-	ProcessingTime        time.Duration             `json:"processing_time"`
-	Confidence            float64                   `json:"confidence"`
-	Metadata              map[string]any            `json:"metadata"`
-	AlignmentApplied      bool                      `json:"alignment_applied"`
-	TemporalOffset        float64                   `json:"temporal_offset_seconds"`
+	OverallSimilarity float64                   `json:"overall_similarity"` // 0.0-1.0
+	FeatureSimilarity float64                   `json:"feature_similarity"` // Feature-based similarity
+	ContentTypeMatch  bool                      `json:"content_type_match"`
+	FeatureDistances  map[string]float64        `json:"feature_distances"` // Per feature distances
+	QualityMetrics    *ComparisonQualityMetrics `json:"qualtiy_metrics"`   // Comparison quality
+	ProcessingTime    time.Duration             `json:"processing_time"`
+	Confidence        float64                   `json:"confidence"`
+	Metadata          map[string]any            `json:"metadata"`
+	AlignmentApplied  bool                      `json:"alignment_applied"`
+	TemporalOffset    float64                   `json:"temporal_offset_seconds"`
 }
 
 // ComparisonQualityMetrics holds quality metrics for the comparison
@@ -144,55 +142,29 @@ func (fc *FingerprintComparator) Compare(fp1, fp2 *AudioFingerprint) (*Similarit
 		"function": "Compare",
 		"method":   fc.config.Method,
 		"fp1_id":   fp1.ID,
+		"fp1_url":  fp1.StreamURL,
 		"fp2_id":   fp2.ID,
+		"fp2_url":  fp2.StreamURL,
 	})
 
 	logger.Debug("Starting fingerprint comparison")
 
 	// Initialize result
 	result := &SimilarityResult{
-		PerceptualHashMatches: make(map[string]float64),
-		FeatureDistances:      make(map[string]float64),
-		Metadata:              make(map[string]any),
+		FeatureDistances: make(map[string]float64),
+		Metadata:         make(map[string]any),
 	}
 
 	result.ContentTypeMatch = fp1.ContentType == fp2.ContentType
 
 	// Apply content filtering
 	if fc.config.EnableContentFilter && !result.ContentTypeMatch {
-		logger.Debug("Content types don't match, applying penalty")
+		logger.Warn("Content types don't match, applying penalty")
 		result.OverallSimilarity = 0.0
-		result.Confidence = 0.1
+		result.Confidence = 0.25
 		result.ProcessingTime = time.Since(startTime)
 		return result, nil
 	}
-
-	// Calculate hash similarity
-	hashSimilarity, err := fc.calculateHashSimilarity(fp1, fp2)
-	if err != nil {
-		logger.Error(err, "Failed to calculate hash similarity")
-		hashSimilarity = 0.0
-	}
-	result.HashSimilarity = hashSimilarity
-
-	// Early exit if hash filtering is enabled and similarity is too low
-	earlyExitThreshold := 0.00005 // Only exit if hash similarity is extremely low (1%)
-	if hashSimilarity < earlyExitThreshold {
-		logger.Warn("Hash similarity extremely low, early exit", logging.Fields{
-			"hash_similarity": hashSimilarity,
-			"threshold":       earlyExitThreshold,
-		})
-		result.OverallSimilarity = hashSimilarity
-		result.FeatureSimilarity = 0.0
-		result.Confidence = 0.2
-		result.ProcessingTime = time.Since(startTime)
-		return result, nil
-	}
-
-	logger.Debug("Proceeding to feature comparison", logging.Fields{
-		"hash_similarity":      hashSimilarity,
-		"early_exit_threshold": earlyExitThreshold,
-	})
 
 	// Calculate feature similarity
 	featureSimilarity, err := fc.calculateFeatureSimilarity(fp1, fp2, result)
@@ -213,8 +185,6 @@ func (fc *FingerprintComparator) Compare(fp1, fp2 *AudioFingerprint) (*Similarit
 	result.ProcessingTime = time.Since(startTime)
 
 	logger.Info("Fingerprint comparison completed", logging.Fields{
-		"overall_similarity": result.OverallSimilarity,
-		"hash_similarity":    result.HashSimilarity,
 		"feature_similarity": result.FeatureSimilarity,
 		"content_type_match": result.ContentTypeMatch,
 		"confidence":         result.Confidence,
@@ -291,104 +261,6 @@ func (fc *FingerprintComparator) FindBestMatches(query *AudioFingerprint, candid
 	})
 
 	return matches, nil
-}
-
-// calculateHashSimilarity calculates simlarity based on hashes
-func (fc *FingerprintComparator) calculateHashSimilarity(fp1, fp2 *AudioFingerprint) (float64, error) {
-	similarities := make([]float64, 0)
-
-	// Compare compact hashes
-	if fp1.CompactHash != "" && fp2.CompactHash != "" {
-		var compactSim float64
-
-		// Check if these are perceptual hashes (shorter length indicates perceptual)
-		if len(fp1.CompactHash) <= 32 && len(fp2.CompactHash) <= 32 { // Changed from 16 to 32
-			// Use perceptual hash comparison
-			compactSim = extractors.ComparePerceptualHashes(fp1.CompactHash, fp2.CompactHash)
-			fc.logger.Debug("Using perceptual hash comparison", logging.Fields{
-				"hash1":      fp1.CompactHash,
-				"hash2":      fp2.CompactHash,
-				"similarity": compactSim,
-			})
-		} else {
-			// Use traditional exact hash comparison
-			compactSim = fc.compareHashes(fp1.CompactHash, fp2.CompactHash)
-			fc.logger.Debug("Using traditional hash comparison", logging.Fields{
-				"hash1_len":  len(fp1.CompactHash),
-				"hash2_len":  len(fp2.CompactHash),
-				"similarity": compactSim,
-			})
-		}
-
-		similarities = append(similarities, compactSim)
-	}
-
-	// Compare perceptual hashes with perceptual comparison
-	for hashType, hash1 := range fp1.PerceptualHashes {
-		if hash2, exists := fp2.PerceptualHashes[hashType]; exists {
-			hashSim := extractors.ComparePerceptualHashes(hash1, hash2)
-			similarities = append(similarities, hashSim)
-
-			fc.logger.Debug("Perceptual hash type comparison", logging.Fields{
-				"type":       hashType,
-				"hash1":      hash1,
-				"hash2":      hash2,
-				"similarity": hashSim,
-			})
-		}
-	}
-
-	if len(similarities) == 0 {
-		return 0.0, nil
-	}
-
-	// Weight more recent perceptual hashes higher than compact hash
-	if len(similarities) > 1 {
-		// Give less weight to the first hash (compact) if we have perceptual hashes
-		weights := make([]float64, len(similarities))
-		weights[0] = 0.2 // Compact hash gets less weight
-		for i := 1; i < len(weights); i++ {
-			weights[i] = 0.8 / float64(len(weights)-1) // Distribute remaining weight among perceptual hashes
-		}
-
-		weightedSim := fc.calculateWeightedMean(similarities, weights)
-		fc.logger.Debug("Weighted hash similarity", logging.Fields{
-			"individual_sims": similarities,
-			"weights":         weights,
-			"final_sim":       weightedSim,
-		})
-
-		return weightedSim, nil
-	}
-
-	return similarities[0], nil
-}
-
-// compareHashes compares two hash strings using Hamming distance
-func (fc *FingerprintComparator) compareHashes(hash1, hash2 string) float64 {
-	if hash1 == "" || hash2 == "" {
-		return 0.0
-	}
-
-	if hash1 == hash2 {
-		return 1.0
-	}
-
-	// Calculate Hamming distance for hex sxtrings
-	minLen := min(len(hash1), len(hash2))
-
-	if minLen == 0 {
-		return 0.0
-	}
-
-	matches := 0
-	for i := range minLen {
-		if hash1[i] == hash2[i] {
-			matches++
-		}
-	}
-
-	return float64(matches) / float64(minLen)
 }
 
 // calculateFeatureSimilarity calculates similarity based on extracted features
@@ -1013,25 +885,8 @@ func (fc *FingerprintComparator) calculateWeightedMean(values, weights []float64
 // calculateOverallSimilarity combines hash and feature similarities
 // TODO: rename and change type
 func (fc *FingerprintComparator) calculateOverallSimilarity(result *SimilarityResult) float64 {
-	/* 	switch fc.internalMethod {
-	   	case methodAdaptive:
-	   		return fc.calculateWeightedFeatureSimilarity(result)
-	   	default:
-	   		// Default weighted combination
-	   		return fc.calculateSimpleWeightedSimilarity(result)
-	   	} */
-
-	// For alignment-aware comparisons, emphasize features over hashes
-	if result.AlignmentApplied {
-		// Give much more weight to features when alignment is applied
-		hashWeight := 0.1    // Reduced from ~0.3
-		featureWeight := 0.9 // Increased from ~0.7
-
-		return hashWeight*result.HashSimilarity + featureWeight*result.FeatureSimilarity
-	}
-
-	// Use normal weights for non-aligned comparisons
-	return fc.hashWeight*result.HashSimilarity + fc.featureWeight*result.FeatureSimilarity
+	// TODO: BETTER OVERALL SIMILARITY COMP
+	return result.FeatureSimilarity
 }
 
 // calculateQualityMetrics calculates quality metrics for the comparison
@@ -1179,12 +1034,6 @@ func (fc *FingerprintComparator) calculateConfidence(result *SimilarityResult) f
 		confidence -= result.QualityMetrics.NoiseLevel * 0.1
 	}
 
-	// Consistent hash and feature similarities increase confidence
-	hashFeatureDiff := math.Abs(result.HashSimilarity - result.FeatureSimilarity)
-	if hashFeatureDiff < 0.2 {
-		confidence += 0.1
-	}
-
 	return math.Max(0.0, math.Min(1.0, confidence))
 }
 
@@ -1315,7 +1164,6 @@ func GetSimilarityStatistics(results []*SimilarityResult) map[string]float64 {
 
 	for i, result := range results {
 		similarities[i] = result.OverallSimilarity
-		hashSims[i] = result.HashSimilarity
 		featureSims[i] = result.FeatureSimilarity
 		confidences[i] = result.Confidence
 	}

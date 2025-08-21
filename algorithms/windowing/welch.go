@@ -5,7 +5,6 @@ import (
 )
 
 // Welch represents a Welch window function
-// Extracted from your existing generateWelch implementation
 type Welch struct {
 	size         int
 	coefficients []float64
@@ -21,7 +20,6 @@ func NewWelch(size int) *Welch {
 }
 
 // generate creates Welch window coefficients
-// This is your existing working implementation
 func (w *Welch) generate() {
 	w.coefficients = make([]float64, w.size)
 

@@ -1,7 +1,6 @@
 package spectral
 
 // SpectralCentroid computes the spectral centroid (center of mass) of a spectrum
-// Extracted from your existing working implementation
 type SpectralCentroid struct {
 	sampleRate  int
 	freqBins    []float64 // Pre-calculated frequency bins for efficiency
@@ -16,18 +15,16 @@ func NewSpectralCentroid(sampleRate int) *SpectralCentroid {
 }
 
 // Compute calculates spectral centroid for a single magnitude spectrum
-// This is your existing working implementation
 func (sc *SpectralCentroid) Compute(spectrum []float64) float64 {
 	if len(spectrum) == 0 {
 		return 0.0
 	}
 
-	// Initialize frequency bins if needed (matches your GetFrequencyBins)
+	// Initialize frequency bins if needed
 	if !sc.initialized || len(sc.freqBins) != len(spectrum) {
 		sc.initializeFreqBins(len(spectrum))
 	}
 
-	// Your existing implementation from calculateSpectralCentroid
 	numerator := 0.0
 	denominator := 0.0
 
@@ -58,7 +55,7 @@ func (sc *SpectralCentroid) ComputeFrames(spectrogram [][]float64) []float64 {
 	return centroids
 }
 
-// initializeFreqBins pre-calculates frequency bins (matches your existing GetFrequencyBins)
+// initializeFreqBins pre-calculates frequency bins
 func (sc *SpectralCentroid) initializeFreqBins(numBins int) {
 	sc.freqBins = make([]float64, numBins)
 	for i := range numBins {

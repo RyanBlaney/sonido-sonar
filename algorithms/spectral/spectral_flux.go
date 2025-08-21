@@ -5,9 +5,7 @@ import (
 )
 
 // SpectralFlux computes spectral flux (measure of spectral change)
-// Extracted from your existing ComputeSpectralFlux implementation
 type SpectralFlux struct {
-	// No state needed - TODO: why
 }
 
 // NewSpectralFlux creates a new spectral flux calculator
@@ -16,7 +14,6 @@ func NewSpectralFlux() *SpectralFlux {
 }
 
 // Compute calculates spectral flux for a spectrogram
-// This is your existing working implementation
 func (sf *SpectralFlux) Compute(spectrogram [][]float64) []float64 {
 	if len(spectrogram) < 2 {
 		return []float64{}

@@ -1,5 +1,7 @@
 package config
 
+import "github.com/RyanBlaney/sonido-sonar/fingerprint/analyzers"
+
 type ContentAwareConfig struct {
 	EnableContentDetection bool                           `json:"enable_content_detection"`
 	DefaultContentType     ContentType                    `json:"default_content_type"`
@@ -10,10 +12,11 @@ type ContentAwareConfig struct {
 
 type FeatureConfig struct {
 	// Spectral Analysis
-	SampleRate int        `json:"sample_rate"`
-	WindowSize int        `json:"window_size"`
-	HopSize    int        `json:"hop_size"`
-	FreqRange  [2]float64 `json:"freq_range"` // [min, max] Hz
+	SampleRate int                  `json:"sample_rate"`
+	WindowSize int                  `json:"window_size"`
+	HopSize    int                  `json:"hop_size"`
+	FreqRange  [2]float64           `json:"freq_range"` // [min, max] Hz
+	WindowType analyzers.WindowType `json:"window_type"`
 
 	// Feature Selection
 	EnableChroma           bool `json:"enable_chroma"`
@@ -43,6 +46,23 @@ const (
 	ContentMixed   ContentType = "mixed"
 	ContentUnknown ContentType = "unknown"
 )
+
+func ToContentType(contentType string) ContentType {
+	switch contentType {
+	case "music":
+		return ContentMusic
+	case "news":
+		return ContentNews
+	case "sports":
+		return ContentSports
+	case "talk":
+		return ContentTalk
+	case "mixed":
+		return ContentMixed
+	default:
+		return ContentUnknown
+	}
+}
 
 // ComparisonConfig configures fingerprint comparison (simplified for users)
 type ComparisonConfig struct {
@@ -82,7 +102,7 @@ type AlignmentConfig struct {
 
 func DefaultAlignmentConfig() AlignmentConfig {
 	return AlignmentConfig{
-		MaxLagSeconds:     30.0,
+		MaxLagSeconds:     30.0, // Should be just under sample duration
 		MinConfidence:     0.6,
 		StepSize:          1,
 		PreferredMethod:   "hybrid",

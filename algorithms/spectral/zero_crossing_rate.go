@@ -6,7 +6,7 @@ import (
 	"gonum.org/v1/gonum/stat"
 )
 
-// ZeroCrossingRate calculates zero crossing rate for voice activity detection
+// ZeroCrossingRate calculates zero crossing rate for voice activity detection.
 // High ZCR indicates fricatives/unvoiced speech, low ZCR indicates voiced speech
 type ZeroCrossingRate struct {
 	sampleRate int
@@ -123,7 +123,7 @@ func (zcr *ZeroCrossingRate) ComputeFramesNormalized(signal []float64) []float64
 	return zcrValues
 }
 
-// ComputeWithThreshold calculates ZCR with amplitude threshold
+// ComputeWithThreshold calculates ZCR with amplitude threshold.
 // Only counts crossings above a minimum amplitude to reduce noise sensitivity
 func (zcr *ZeroCrossingRate) ComputeWithThreshold(frame []float64, threshold float64) float64 {
 	if len(frame) < 2 {
@@ -144,7 +144,7 @@ func (zcr *ZeroCrossingRate) ComputeWithThreshold(frame []float64, threshold flo
 	return float64(crossings) / frameDuration
 }
 
-// DetectVoiceActivity uses ZCR for basic voice activity detection
+// DetectVoiceActivity uses ZCR for basic voice activity detection.
 // Returns true if frame likely contains speech
 func (zcr *ZeroCrossingRate) DetectVoiceActivity(frame []float64, energyThreshold, zcrLowThreshold, zcrHighThreshold float64) bool {
 	// Calculate frame energy
@@ -170,7 +170,7 @@ func (zcr *ZeroCrossingRate) DetectVoiceActivity(frame []float64, energyThreshol
 	return zcrRate >= zcrLowThreshold && zcrRate <= zcrHighThreshold
 }
 
-// DetectSpeechSegments performs voice activity detection on entire signal
+// DetectSpeechSegments performs voice activity detection on entire signal.
 // Returns start/end indices of speech segments
 func (zcr *ZeroCrossingRate) DetectSpeechSegments(signal []float64, energyThreshold, zcrLowThreshold, zcrHighThreshold float64, minSegmentLength int) [][]int {
 	zcrValues := zcr.ComputeFramesNormalized(signal)

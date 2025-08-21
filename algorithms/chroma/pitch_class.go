@@ -46,7 +46,7 @@ func (pca *PitchClassAnalyzer) CreateProfile(chromagram [][]float64) *PitchClass
 	// Sum across all time frames
 	profile := make([]float64, 12)
 	for t := range chromagram {
-		for pc := 0; pc < 12; pc++ {
+		for pc := range 12 {
 			profile[pc] += chromagram[t][pc]
 		}
 	}
@@ -74,7 +74,7 @@ func (pca *PitchClassAnalyzer) ExtractPitchClasses(chromagram [][]float64, thres
 	profile := pca.CreateProfile(chromagram)
 	var pitchClasses []PitchClass
 
-	for pc := 0; pc < 12; pc++ {
+	for pc := range 12 {
 		if profile.Profile[pc] >= threshold {
 			// Calculate salience as relative prominence
 			salience := pca.calculateSalience(profile.Profile, pc)
@@ -160,7 +160,7 @@ func (pca *PitchClassAnalyzer) TransposeProfile(profile []float64, semitones int
 	}
 
 	transposed := make([]float64, 12)
-	for i := 0; i < 12; i++ {
+	for i := range 12 {
 		newIndex := (i + semitones + 12) % 12
 		transposed[newIndex] = profile[i]
 	}
@@ -177,7 +177,7 @@ func (pca *PitchClassAnalyzer) FindBestTransposition(profile, template []float64
 	bestTransposition := 0
 	bestCorrelation := -1.0
 
-	for t := 0; t < 12; t++ {
+	for t := range 12 {
 		transposed := pca.TransposeProfile(template, t)
 		correlation := pca.correlation(profile, transposed)
 
@@ -405,7 +405,7 @@ func (pca *PitchClassAnalyzer) analyzeTonicDominant(profile []float64) float64 {
 	maxStrength := 0.0
 
 	// Test all possible tonic-dominant pairs
-	for tonic := 0; tonic < 12; tonic++ {
+	for tonic := range 12 {
 		dominant := (tonic + 7) % 12
 		strength := profile[tonic] * profile[dominant]
 		if strength > maxStrength {
@@ -421,7 +421,7 @@ func (pca *PitchClassAnalyzer) analyzeTriadicContent(profile []float64, interval
 	maxStrength := 0.0
 
 	// Test all transpositions
-	for root := 0; root < 12; root++ {
+	for root := range 12 {
 		strength := 1.0
 		for _, interval := range intervals {
 			pc := (root + interval) % 12
@@ -446,7 +446,7 @@ func (pca *PitchClassAnalyzer) analyzeDiatonicContent(profile []float64) float64
 	maxDiatonicStrength := 0.0
 
 	// Test all transpositions
-	for root := 0; root < 12; root++ {
+	for root := range 12 {
 		diatonicEnergy := 0.0
 		chromaticEnergy := 0.0
 

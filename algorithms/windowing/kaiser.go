@@ -6,7 +6,6 @@ import (
 )
 
 // Kaiser represents a Kaiser window function
-// Extracted from your existing generateKaiser implementation
 type Kaiser struct {
 	size         int
 	beta         float64
@@ -26,7 +25,6 @@ func NewKaiser(size int, beta float64, symmetric bool) *Kaiser {
 }
 
 // generate creates Kaiser window coefficients
-// This is your existing working implementation
 func (k *Kaiser) generate() {
 	k.coefficients = make([]float64, k.size)
 
@@ -45,7 +43,6 @@ func (k *Kaiser) generate() {
 }
 
 // besselI0 computes the zero-order modified Bessel function of the first kind
-// This is your existing working implementation
 func (k *Kaiser) besselI0(x float64) float64 {
 	// Series expansion approximation
 	sum := 1.0

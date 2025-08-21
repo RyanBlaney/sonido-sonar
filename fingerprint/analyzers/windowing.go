@@ -246,9 +246,7 @@ func (wg *WindowGenerator) generateCoefficients(config *WindowConfig) ([]float64
 func (wg *WindowGenerator) generateHann(coefficients []float64, symmetric bool) {
 	N := len(coefficients)
 	denominator := float64(N)
-	if !symmetric {
-		denominator = float64(N)
-	} else {
+	if symmetric {
 		denominator = float64(N - 1)
 	}
 
@@ -261,9 +259,7 @@ func (wg *WindowGenerator) generateHann(coefficients []float64, symmetric bool) 
 func (wg *WindowGenerator) generateHamming(coefficients []float64, symmetric bool) {
 	N := len(coefficients)
 	denominator := float64(N)
-	if !symmetric {
-		denominator = float64(N)
-	} else {
+	if symmetric {
 		denominator = float64(N - 1)
 	}
 
@@ -276,9 +272,7 @@ func (wg *WindowGenerator) generateHamming(coefficients []float64, symmetric boo
 func (wg *WindowGenerator) generateBlackman(coefficients []float64, symmetric bool) {
 	N := len(coefficients)
 	denominator := float64(N)
-	if !symmetric {
-		denominator = float64(N)
-	} else {
+	if symmetric {
 		denominator = float64(N - 1)
 	}
 
@@ -294,9 +288,7 @@ func (wg *WindowGenerator) generateBlackman(coefficients []float64, symmetric bo
 func (wg *WindowGenerator) generateBlackmanHarris(coefficients []float64, symmetric bool) {
 	N := len(coefficients)
 	denominator := float64(N)
-	if !symmetric {
-		denominator = float64(N)
-	} else {
+	if symmetric {
 		denominator = float64(N - 1)
 	}
 
@@ -312,9 +304,7 @@ func (wg *WindowGenerator) generateBlackmanHarris(coefficients []float64, symmet
 func (wg *WindowGenerator) generateKaiser(coefficients []float64, beta float64, symmetric bool) {
 	N := len(coefficients)
 	denominator := float64(N)
-	if !symmetric {
-		denominator = float64(N)
-	} else {
+	if symmetric {
 		denominator = float64(N - 1)
 	}
 
@@ -328,7 +318,7 @@ func (wg *WindowGenerator) generateKaiser(coefficients []float64, beta float64, 
 }
 
 // generateTukey generates Tukey window coefficients
-func (wg *WindowGenerator) generateTukey(coefficients []float64, alpha float64, symmetric bool) {
+func (wg *WindowGenerator) generateTukey(coefficients []float64, alpha float64, _ bool) {
 	N := len(coefficients)
 
 	// Tukey window is rectangular in the middle with cosine tapers on the sides
@@ -358,7 +348,7 @@ func (wg *WindowGenerator) generateRectangular(coefficients []float64) {
 }
 
 // generateBartlett generates Bartlett (triangular) window coefficients
-func (wg *WindowGenerator) generateBartlett(coefficients []float64, symmetric bool) {
+func (wg *WindowGenerator) generateBartlett(coefficients []float64, _ bool) {
 	N := len(coefficients)
 
 	for i := range N {

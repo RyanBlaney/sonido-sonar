@@ -6,7 +6,6 @@ import (
 )
 
 // BlackmanHarris represents a Blackman-Harris window function
-// Extracted from your existing generateBlackmanHarris implementation
 type BlackmanHarris struct {
 	size         int
 	symmetric    bool
@@ -24,7 +23,6 @@ func NewBlackmanHarris(size int, symmetric bool) *BlackmanHarris {
 }
 
 // generate creates Blackman-Harris window coefficients
-// This is your existing working implementation
 func (bh *BlackmanHarris) generate() {
 	bh.coefficients = make([]float64, bh.size)
 

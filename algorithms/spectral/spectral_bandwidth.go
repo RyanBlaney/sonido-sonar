@@ -5,7 +5,6 @@ import (
 )
 
 // SpectralBandwidth computes spectral bandwidth around centroid
-// Extracted from your existing working implementation
 type SpectralBandwidth struct {
 	sampleRate  int
 	freqBins    []float64 // Pre-calculated frequency bins
@@ -20,7 +19,6 @@ func NewSpectralBandwidth(sampleRate int) *SpectralBandwidth {
 }
 
 // Compute calculates spectral bandwidth for a single spectrum given its centroid
-// This is your existing working implementation
 func (sb *SpectralBandwidth) Compute(spectrum []float64, centroid float64) float64 {
 	if len(spectrum) == 0 {
 		return 0.0
@@ -63,7 +61,7 @@ func (sb *SpectralBandwidth) ComputeFrames(spectrogram [][]float64, centroids []
 	return bandwidths
 }
 
-// initializeFreqBins pre-calculates frequency bins (matches your existing GetFrequencyBins)
+// initializeFreqBins pre-calculates frequency bins
 func (sb *SpectralBandwidth) initializeFreqBins(numBins int) {
 	sb.freqBins = make([]float64, numBins)
 	for i := range numBins {

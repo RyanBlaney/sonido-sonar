@@ -5,9 +5,8 @@ import (
 )
 
 // PowerSpectrum provides power spectral density computation
-// Extracted from your existing ComputePowerSpectrum implementation
 type PowerSpectrum struct {
-	// No state needed - stateless calculation
+	// No state needed
 }
 
 // NewPowerSpectrum creates a new power spectrum calculator
@@ -30,7 +29,6 @@ func (ps *PowerSpectrum) Compute(magnitudeSpectrum []float64) []float64 {
 }
 
 // ComputeFromSTFT computes power spectrum from STFT result
-// This is your existing working implementation
 func (ps *PowerSpectrum) ComputeFromSTFT(stftResult *STFTResult) [][]float64 {
 	power := make([][]float64, stftResult.TimeFrames)
 
@@ -61,7 +59,6 @@ func (ps *PowerSpectrum) ComputeFrames(spectrogram [][]float64) [][]float64 {
 }
 
 // ComputeLog computes log power spectrum in dB with floor
-// This is your existing ComputeLogPowerSpectrum implementation
 func (ps *PowerSpectrum) ComputeLog(magnitudeSpectrum []float64, floorDB float64) []float64 {
 	if len(magnitudeSpectrum) == 0 {
 		return []float64{}
@@ -82,7 +79,6 @@ func (ps *PowerSpectrum) ComputeLog(magnitudeSpectrum []float64, floorDB float64
 }
 
 // ComputeLogFromSTFT computes log power spectrum from STFT result
-// This is your existing working implementation
 func (ps *PowerSpectrum) ComputeLogFromSTFT(stftResult *STFTResult, floorDB float64) [][]float64 {
 	logPower := make([][]float64, stftResult.TimeFrames)
 	floor := math.Pow(10, floorDB/10.0)

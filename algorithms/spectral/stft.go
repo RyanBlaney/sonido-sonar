@@ -10,14 +10,12 @@ import (
 )
 
 // STFT provides Short-Time Fourier Transform functionality
-// Extracted from your existing SpectralAnalyzer implementation
 type STFT struct {
 	fft    *FFT
 	logger logging.Logger
 }
 
 // STFTResult holds the result of STFT analysis
-// This is your existing SpectrogramResult structure
 type STFTResult struct {
 	Magnitude      [][]float64    `json:"magnitude"`       // Time x Frequency magnitude matrix
 	Phase          [][]float64    `json:"phase"`           // Time x Frequency phase matrix
@@ -44,7 +42,6 @@ func NewSTFT() *STFT {
 }
 
 // ComputeWithWindow computes STFT with parallel processing and custom window type
-// This is your existing ComputeSTFTWithWindow implementation
 func (s *STFT) ComputeWithWindow(signal []float64, windowSize int, hopSize int, sampleRate int, window Window) (*STFTResult, error) {
 	if len(signal) == 0 {
 		return nil, fmt.Errorf("empty signal")
@@ -170,7 +167,6 @@ func (s *STFT) ComputeWithWindow(signal []float64, windowSize int, hopSize int, 
 }
 
 // ComputeSingleFrame computes FFT for a single frame
-// This is your existing ComputeFFT implementation adapted
 func (s *STFT) ComputeSingleFrame(signal []float64, sampleRate int) (*STFTResult, error) {
 	if len(signal) == 0 {
 		return nil, fmt.Errorf("empty signal")
@@ -216,7 +212,6 @@ func (s *STFT) ComputeSingleFrame(signal []float64, sampleRate int) (*STFTResult
 }
 
 // getOptimalWorkerCount determines the optimal number of workers based on workload
-// This is your existing implementation
 func (s *STFT) getOptimalWorkerCount(numFrames int) int {
 	// Base number on available CPUs
 	numCPU := runtime.NumCPU()
