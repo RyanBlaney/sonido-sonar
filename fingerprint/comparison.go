@@ -129,7 +129,6 @@ func ContentOptimizedComparisonConfig(contentType config.ContentType) *config.Co
 // Compare compares two fingerprints and returns the similarity result
 // TODO: ways to optimize:
 // - Check compact hash similarity
-// - Use perceptual hashes FIRST for similarity detection (possibly skip feature comp)
 // - Use feature comparison only for PRECISE similarity scoring
 func (fc *FingerprintComparator) Compare(fp1, fp2 *AudioFingerprint) (*SimilarityResult, error) {
 	if fp1 == nil || fp2 == nil {
