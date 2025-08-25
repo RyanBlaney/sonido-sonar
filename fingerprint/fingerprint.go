@@ -134,9 +134,9 @@ func ContentOptimizedFingerprintConfig(contentType config.ContentType) *Fingerpr
 }
 
 // GenerateFingerprint generates a complete audio fingerprint from audio data
-func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioData) (*AudioFingerprint, error) {
+func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioData) (*AudioFingerprint, *config.FeatureConfig, error) {
 	if audioData == nil {
-		return nil, fmt.Errorf("audio data cannot be nil")
+		return nil, nil, fmt.Errorf("audio data cannot be nil")
 	}
 
 	logger := fg.logger.WithFields(logging.Fields{
@@ -168,18 +168,22 @@ func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioDa
 	generationConfig := fg.contentManager.GetGenerationConfig(contentType)
 
 	// Extract features using appropriate extractor
-	extractor, err := fg.extractorFactory.CreateExtractor(contentType, *generationConfig.FeatureConfig)
+	extractor, err := fg.extractorFactory.CreateExtractor(contentType, *fg.config.FeatureConfig)
 	if err != nil {
 		logger.Error(err, "Failed to create feature extractor")
-		return nil, err
+		return nil, fg.config.FeatureConfig, err
 	}
 
-	windowSize := generationConfig.WindowSize
+	windowSize := fg.config.WindowSize
+	generationConfig.WindowSize = windowSize
 	generationConfig.FeatureConfig.WindowSize = windowSize
 
-	hopSize := generationConfig.HopSize
+	hopSize := fg.config.FeatureConfig.HopSize
+	generationConfig.HopSize = hopSize
 	generationConfig.FeatureConfig.HopSize = hopSize
-	windowType := generationConfig.FeatureConfig.WindowType
+
+	windowType := fg.config.FeatureConfig.WindowType
+	generationConfig.FeatureConfig.WindowType = windowType
 
 	logger.Debug("STFT Configuration", logging.Fields{
 		"window_size": windowSize,
@@ -207,7 +211,7 @@ func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioDa
 	features, err := extractor.ExtractFeatures(spectrogram, audioData.PCM, audioData.SampleRate)
 	if err != nil {
 		logger.Error(err, "Failed to extract features")
-		return nil, err
+		return nil, fg.config.FeatureConfig, err
 	}
 
 	// Generate fingerprint
@@ -232,5 +236,5 @@ func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioDa
 		"content_type":   fingerprint.ContentType,
 	})
 
-	return fingerprint, nil
+	return fingerprint, fg.config.FeatureConfig, nil
 }
