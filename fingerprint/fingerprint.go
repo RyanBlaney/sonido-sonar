@@ -174,8 +174,11 @@ func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioDa
 		return nil, err
 	}
 
-	windowSize := generationConfig.FeatureConfig.WindowSize
-	hopSize := generationConfig.FeatureConfig.HopSize
+	windowSize := generationConfig.WindowSize
+	generationConfig.FeatureConfig.WindowSize = windowSize
+
+	hopSize := generationConfig.HopSize
+	generationConfig.FeatureConfig.HopSize = hopSize
 	windowType := generationConfig.FeatureConfig.WindowType
 
 	logger.Debug("STFT Configuration", logging.Fields{
