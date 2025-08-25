@@ -13,16 +13,17 @@ import (
 
 // AudioFingerprint represents a complete audio fingerprint
 type AudioFingerprint struct {
-	ID          string                        `json:"id"`
-	StreamURL   string                        `json:"stream_url"`
-	ContentType config.ContentType            `json:"content_type"`
-	Timestamp   time.Time                     `json:"timestamp"`
-	Duration    time.Duration                 `json:"duration"`
-	SampleRate  int                           `json:"sample_rate"`
-	HopSize     int                           `json:"hop_size"` // for alignment
-	Channels    int                           `json:"channels"`
-	Features    *extractors.ExtractedFeatures `json:"features"`
-	Metadata    map[string]any                `json:"metadata,omitempty"`
+	ID            string                        `json:"id"`
+	StreamURL     string                        `json:"stream_url"`
+	ContentType   config.ContentType            `json:"content_type"`
+	Timestamp     time.Time                     `json:"timestamp"`
+	Duration      time.Duration                 `json:"duration"`
+	SampleRate    int                           `json:"sample_rate"`
+	HopSize       int                           `json:"hop_size"` // for alignment
+	Channels      int                           `json:"channels"`
+	Features      *extractors.ExtractedFeatures `json:"features"`
+	Metadata      map[string]any                `json:"metadata,omitempty"`
+	FeatureConfig *config.FeatureConfig         `json:"feature_config"`
 }
 
 // FingerprintConfig holds configuration for fingerprint generation
@@ -134,9 +135,9 @@ func ContentOptimizedFingerprintConfig(contentType config.ContentType) *Fingerpr
 }
 
 // GenerateFingerprint generates a complete audio fingerprint from audio data
-func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioData) (*AudioFingerprint, *config.FeatureConfig, error) {
+func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioData) (*AudioFingerprint, error) {
 	if audioData == nil {
-		return nil, nil, fmt.Errorf("audio data cannot be nil")
+		return nil, fmt.Errorf("audio data cannot be nil")
 	}
 
 	logger := fg.logger.WithFields(logging.Fields{
@@ -171,7 +172,7 @@ func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioDa
 	extractor, err := fg.extractorFactory.CreateExtractor(contentType, *fg.config.FeatureConfig)
 	if err != nil {
 		logger.Error(err, "Failed to create feature extractor")
-		return nil, fg.config.FeatureConfig, err
+		return nil, err
 	}
 
 	windowSize := fg.config.WindowSize
@@ -211,21 +212,22 @@ func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioDa
 	features, err := extractor.ExtractFeatures(spectrogram, audioData.PCM, audioData.SampleRate)
 	if err != nil {
 		logger.Error(err, "Failed to extract features")
-		return nil, fg.config.FeatureConfig, err
+		return nil, err
 	}
 
 	// Generate fingerprint
 	fingerprint := &AudioFingerprint{
-		ID:          generateID(audioData),
-		StreamURL:   audioData.Metadata.URL,
-		ContentType: contentType,
-		Timestamp:   time.Now(),
-		Duration:    calculateDuration(audioData),
-		SampleRate:  audioData.SampleRate,
-		HopSize:     fg.config.FeatureConfig.HopSize,
-		Channels:    audioData.Channels,
-		Features:    features,
-		Metadata:    make(map[string]any),
+		ID:            generateID(audioData),
+		StreamURL:     audioData.Metadata.URL,
+		ContentType:   contentType,
+		Timestamp:     time.Now(),
+		Duration:      calculateDuration(audioData),
+		SampleRate:    audioData.SampleRate,
+		HopSize:       fg.config.FeatureConfig.HopSize,
+		Channels:      audioData.Channels,
+		Features:      features,
+		Metadata:      make(map[string]any),
+		FeatureConfig: fg.config.FeatureConfig,
 	}
 
 	// Add metadata
@@ -236,5 +238,5 @@ func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioDa
 		"content_type":   fingerprint.ContentType,
 	})
 
-	return fingerprint, fg.config.FeatureConfig, nil
+	return fingerprint, nil
 }
