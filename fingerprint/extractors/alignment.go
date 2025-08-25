@@ -153,6 +153,23 @@ func (ae *AlignmentExtractor) ExtractAlignmentFeatures(
 		"sample_rate":   sampleRate,
 	})
 
+	logger.Info("Feature availability check", logging.Fields{
+		"query_energy_nil": queryFeatures.EnergyFeatures == nil,
+		"ref_energy_nil":   referenceFeatures.EnergyFeatures == nil,
+		"query_energy_len": func() int {
+			if queryFeatures.EnergyFeatures != nil {
+				return len(queryFeatures.EnergyFeatures.ShortTimeEnergy)
+			}
+			return -1
+		}(),
+		"ref_energy_len": func() int {
+			if referenceFeatures.EnergyFeatures != nil {
+				return len(referenceFeatures.EnergyFeatures.ShortTimeEnergy)
+			}
+			return -1
+		}(),
+	})
+
 	logger.Debug("Starting alignment feature extraction")
 
 	result := &AlignmentFeatures{
