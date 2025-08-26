@@ -51,6 +51,11 @@ func NewFingerprintGenerator(config *FingerprintConfig) *FingerprintGenerator {
 		config = DefaultFingerprintConfig()
 	}
 
+	if config.FeatureConfig == nil {
+		defaultConfig := DefaultFingerprintConfig()
+		config.FeatureConfig = defaultConfig.FeatureConfig
+	}
+
 	logger := logging.WithFields(logging.Fields{
 		"component": "fingerprint_generator",
 	})
@@ -69,9 +74,11 @@ func NewFingerprintGenerator(config *FingerprintConfig) *FingerprintGenerator {
 
 // DefaultFingerprintConfig return default fingerprint configuration
 func DefaultFingerprintConfig() *FingerprintConfig {
+	hopSize := 512
+	windowSize := 2048
 	return &FingerprintConfig{
 		WindowSize:          2048,
-		HopSize:             512,
+		HopSize:             hopSize,
 		EnableContentDetect: true,
 		FeatureConfig: &config.FeatureConfig{
 			EnableMFCC:             true,
@@ -89,6 +96,8 @@ func DefaultFingerprintConfig() *FingerprintConfig {
 				"chroma":   0.20,
 				"temporal": 0.15,
 			},
+			HopSize:    hopSize,
+			WindowSize: windowSize,
 		},
 		ContentConfig: &config.ContentAwareConfig{
 			EnableContentDetection: true,
