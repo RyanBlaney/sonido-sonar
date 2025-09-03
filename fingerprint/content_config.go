@@ -96,9 +96,8 @@ func (c *ContentAwareConfigManager) buildFeatureConfig(settings FeatureSettings)
 		ChromaBins:             settings.ChromaBins,
 		SimilarityWeights:      settings.SimilarityWeights,
 		WindowType:             settings.WindowType,
-		// Copy other settings from base config
-		WindowSize: c.baseConfig.FeatureConfig.WindowSize,
-		HopSize:    c.baseConfig.FeatureConfig.HopSize,
+		WindowSize:             c.baseConfig.WindowSize,
+		HopSize:                c.baseConfig.HopSize,
 	}
 }
 
