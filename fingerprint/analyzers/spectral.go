@@ -89,16 +89,19 @@ func (sa *SpectralAnalyzer) ComputeFFT(signal []float64) (*SpectrogramResult, er
 	complexSpectrum[0] = make([]complex128, freqBins)
 
 	// Extract magnitude and phase for positive frequencies
-	for i := 0; i < freqBins; i++ {
-		complexSpectrum[0][i] = fftResult[i]
-		magnitude[0][i] = cmplx.Abs(fftResult[i])
-		phase[0][i] = cmplx.Phase(fftResult[i])
+	positiveFreqs := fftResult[:freqBins] // view, no copy
+	mags := make([]float64, freqBins)
+	phases := make([]float64, freqBins)
+
+	for i, c := range positiveFreqs {
+		mags[i] = cmplx.Abs(c)
+		phases[i] = cmplx.Phase(c)
 	}
 
 	result := &SpectrogramResult{
-		Magnitude:      magnitude,
-		Phase:          phase,
-		Complex:        complexSpectrum,
+		Magnitude:      [][]float64{mags},
+		Phase:          [][]float64{phases},
+		Complex:        [][]complex128{positiveFreqs},
 		TimeFrames:     1, // Single frame
 		FreqBins:       freqBins,
 		SampleRate:     sa.sampleRate,
@@ -163,45 +166,6 @@ func (sa *SpectralAnalyzer) ComputeLogPowerSpectrum(spectrogram *SpectrogramResu
 	return logPower
 }
 
-// ExtractFrameFeatures extracts frequency domain features from a single spectrum frame
-func (sa *SpectralAnalyzer) ExtractFrameFeatures(magnitudeSpectrum []float64) *FrequencyDomainFeatures {
-	features := &FrequencyDomainFeatures{}
-
-	if len(magnitudeSpectrum) == 0 {
-		return features
-	}
-
-	// Generate frequency bins
-	freqs := sa.GetFrequencyBins(len(magnitudeSpectrum))
-
-	// Spectral Centroid (center of mass)
-	features.SpectralCentroid = sa.calculateSpectralCentroid(magnitudeSpectrum, freqs)
-
-	// Spectral Rolloff (85th percentile frequency)
-	features.SpectralRolloff = sa.calculateSpectralRolloff(magnitudeSpectrum, freqs, 0.85)
-
-	// Spectral Bandwidth (second moment around centroid)
-	features.SpectralBandwidth = sa.calculateSpectralBandwidth(magnitudeSpectrum, freqs, features.SpectralCentroid)
-
-	// Spectral Flatness (geometric mean / arithmetic mean)
-	features.SpectralFlatness = sa.calculateSpectralFlatness(magnitudeSpectrum)
-
-	// Spectral Crest (peak / RMS ratio)
-	features.SpectralCrest = sa.calculateSpectralCrest(magnitudeSpectrum)
-
-	// Spectral Slope (linear regression slope)
-	features.SpectralSlope = sa.calculateSpectralSlope(magnitudeSpectrum, freqs)
-
-	// Higher order moments
-	features.SpectralKurtosis = sa.calculateSpectralKurtosis(magnitudeSpectrum, freqs, features.SpectralCentroid)
-	features.SpectralSkewness = sa.calculateSpectralSkewness(magnitudeSpectrum, freqs, features.SpectralCentroid)
-
-	// Energy
-	features.Energy = sa.calculateEnergy(magnitudeSpectrum)
-
-	return features
-}
-
 // GetFrequencyBins returns frequency values for each FFT bin
 func (sa *SpectralAnalyzer) GetFrequencyBins(numBins int) []float64 {
 	freqs := make([]float64, numBins)
@@ -209,267 +173,6 @@ func (sa *SpectralAnalyzer) GetFrequencyBins(numBins int) []float64 {
 		freqs[i] = float64(i) * float64(sa.sampleRate) / float64((numBins-1)*2)
 	}
 	return freqs
-}
-
-// calculateSpectralCentroid computes spectral centroid
-func (sa *SpectralAnalyzer) calculateSpectralCentroid(spectrum []float64, freqs []float64) float64 {
-	if len(spectrum) != len(freqs) {
-		return 0
-	}
-
-	numerator := 0.0
-	denominator := 0.0
-
-	for i := range len(spectrum) {
-		numerator += freqs[i] * spectrum[i]
-		denominator += spectrum[i]
-	}
-
-	if denominator == 0 {
-		return 0
-	}
-
-	return numerator / denominator
-}
-
-// calculateSpectralRolloff computes spectral rolloff frequency
-func (sa *SpectralAnalyzer) calculateSpectralRolloff(spectrum []float64, freqs []float64, threshold float64) float64 {
-	totalEnergy := 0.0
-	for _, mag := range spectrum {
-		totalEnergy += mag * mag
-	}
-
-	if totalEnergy == 0 {
-		return 0
-	}
-
-	targetEnergy := threshold * totalEnergy
-	cumulativeEnergy := 0.0
-
-	for i := range len(spectrum) {
-		cumulativeEnergy += spectrum[i] * spectrum[i]
-		if cumulativeEnergy >= targetEnergy {
-			if i < len(freqs) {
-				return freqs[i]
-			}
-			break
-		}
-	}
-
-	if len(freqs) > 0 {
-		return freqs[len(freqs)-1]
-	}
-	return 0
-}
-
-// calculateSpectralBandwidth computes spectral bandwidth
-func (sa *SpectralAnalyzer) calculateSpectralBandwidth(spectrum []float64, freqs []float64, centroid float64) float64 {
-	if len(spectrum) != len(freqs) {
-		return 0
-	}
-
-	numerator := 0.0
-	denominator := 0.0
-
-	for i := range len(spectrum) {
-		diff := freqs[i] - centroid
-		numerator += diff * diff * spectrum[i]
-		denominator += spectrum[i]
-	}
-
-	if denominator == 0 {
-		return 0
-	}
-
-	return math.Sqrt(numerator / denominator)
-}
-
-// calculateSpectralFlatness computes spectral flatness (Wiener entropy)
-func (sa *SpectralAnalyzer) calculateSpectralFlatness(spectrum []float64) float64 {
-	if len(spectrum) == 0 {
-		return 0
-	}
-
-	// Geometric mean
-	logSum := 0.0
-	count := 0
-
-	for _, mag := range spectrum {
-		if mag > 1e-10 { // Avoid log(0)
-			logSum += math.Log(mag)
-			count++
-		}
-	}
-
-	if count == 0 {
-		return 0
-	}
-
-	geometricMean := math.Exp(logSum / float64(count))
-
-	// Arithmetic mean
-	arithmeticMean := 0.0
-	for _, mag := range spectrum {
-		arithmeticMean += mag
-	}
-	arithmeticMean /= float64(len(spectrum))
-
-	if arithmeticMean == 0 {
-		return 0
-	}
-
-	return geometricMean / arithmeticMean
-}
-
-// calculateSpectralCrest computes spectral crest factor
-func (sa *SpectralAnalyzer) calculateSpectralCrest(spectrum []float64) float64 {
-	if len(spectrum) == 0 {
-		return 0
-	}
-
-	maxVal := 0.0
-	sumSquares := 0.0
-
-	for _, mag := range spectrum {
-		if mag > maxVal {
-			maxVal = mag
-		}
-		sumSquares += mag * mag
-	}
-
-	rms := math.Sqrt(sumSquares / float64(len(spectrum)))
-
-	if rms == 0 {
-		return 0
-	}
-
-	return maxVal / rms
-}
-
-// calculateSpectralSlope computes spectral slope via linear regression
-func (sa *SpectralAnalyzer) calculateSpectralSlope(spectrum []float64, freqs []float64) float64 {
-	if len(spectrum) != len(freqs) || len(spectrum) < 2 {
-		return 0
-	}
-
-	// Convert to log domain for linear regression
-	n := 0
-	sumX := 0.0
-	sumY := 0.0
-	sumXY := 0.0
-	sumXX := 0.0
-
-	for i := range len(spectrum) {
-		if spectrum[i] > 1e-10 && freqs[i] > 0 {
-			x := math.Log10(freqs[i])
-			y := math.Log10(spectrum[i])
-
-			sumX += x
-			sumY += y
-			sumXY += x * y
-			sumXX += x * x
-			n++
-		}
-	}
-
-	if n < 2 {
-		return 0
-	}
-
-	// Linear regression slope
-	denominator := float64(n)*sumXX - sumX*sumX
-	if denominator == 0 {
-		return 0
-	}
-
-	slope := (float64(n)*sumXY - sumX*sumY) / denominator
-	return slope
-}
-
-// calculateSpectralKurtosis computes spectral kurtosis
-func (sa *SpectralAnalyzer) calculateSpectralKurtosis(spectrum []float64, freqs []float64, centroid float64) float64 {
-	if len(spectrum) != len(freqs) || len(spectrum) < 2 {
-		return 0
-	}
-
-	// Calculate fourth moment
-	numerator := 0.0
-	denominator := 0.0
-	variance := 0.0
-
-	// First calculate variance
-	for i := range len(spectrum) {
-		diff := freqs[i] - centroid
-		variance += diff * diff * spectrum[i]
-		denominator += spectrum[i]
-	}
-
-	if denominator == 0 {
-		return 0
-	}
-
-	variance /= denominator
-	if variance == 0 {
-		return 0
-	}
-
-	// Calculate fourth moment
-	for i := range len(spectrum) {
-		diff := freqs[i] - centroid
-		numerator += math.Pow(diff, 4) * spectrum[i]
-	}
-
-	kurtosis := (numerator / denominator) / (variance * variance)
-	return kurtosis - 3.0 // Excess kurtosis (subtract 3 for normal distribution)
-}
-
-// calculateSpectralSkewness computes spectral skewness
-func (sa *SpectralAnalyzer) calculateSpectralSkewness(spectrum []float64, freqs []float64, centroid float64) float64 {
-	if len(spectrum) != len(freqs) || len(spectrum) < 2 {
-		return 0
-	}
-
-	// Calculate third moment and standard deviation
-	numerator := 0.0
-	denominator := 0.0
-	variance := 0.0
-
-	// Calculate variance first
-	for i := range len(spectrum) {
-		diff := freqs[i] - centroid
-		variance += diff * diff * spectrum[i]
-		denominator += spectrum[i]
-	}
-
-	if denominator == 0 {
-		return 0
-	}
-
-	variance /= denominator
-	if variance == 0 {
-		return 0
-	}
-
-	stdDev := math.Sqrt(variance)
-
-	// Calculate third moment
-	for i := range len(spectrum) {
-		diff := freqs[i] - centroid
-		// My linter doesn't like math.Pow(diff, 3) here
-		numerator += (diff * diff * diff) * spectrum[i]
-	}
-
-	skewness := (numerator / denominator) / (stdDev * stdDev * stdDev)
-	return skewness
-}
-
-// calculateEnergy computes total energy
-func (sa *SpectralAnalyzer) calculateEnergy(spectrum []float64) float64 {
-	energy := 0.0
-	for _, mag := range spectrum {
-		energy += mag * mag
-	}
-	return energy
 }
 
 // GetSpectrogramSlice extracts a frequency slice across all time frames
@@ -751,6 +454,11 @@ func (sa *SpectralAnalyzer) ComputeSTFTWithWindow(signal []float64, windowSize i
 	// Launch worker goroutines
 	var wg sync.WaitGroup
 
+	var (
+		once     sync.Once
+		firstErr error
+	)
+
 	for range numWorkers {
 		wg.Add(1)
 		go func() {
@@ -769,10 +477,10 @@ func (sa *SpectralAnalyzer) ComputeSTFTWithWindow(signal []float64, windowSize i
 				copy(frameBuffer, signal[job.startIdx:job.endIdx])
 
 				// Apply window function in-place
-				err := window.ApplyInPlace(frameBuffer)
-				if err != nil {
+				if err := window.ApplyInPlace(frameBuffer); err != nil {
 					logger.Error(err, "Failed to apply window", logging.Fields{"frame": job.frameIdx})
-					continue
+					once.Do(func() { firstErr = err })
+					return
 				}
 
 				// Compute FFT
@@ -807,6 +515,10 @@ func (sa *SpectralAnalyzer) ComputeSTFTWithWindow(signal []float64, windowSize i
 
 	// Wait for all workers to complete
 	wg.Wait()
+
+	if firstErr != nil {
+		return nil, firstErr
+	}
 
 	result := &SpectrogramResult{
 		Magnitude:      magnitude,
