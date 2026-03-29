@@ -411,8 +411,24 @@ func (s *SpeechFeatureExtractor) extractTemporalFeatures(pcm []float64, sampleRa
 func (s *SpeechFeatureExtractor) extractEnergyFeatures(pcm []float64, spectrogram *analyzers.SpectrogramResult) (*EnergyFeatures, error) {
 	features := &EnergyFeatures{}
 
+	s.logger.Info("Computing short time energy", logging.Fields{
+		"pcm_length":  len(pcm),
+		"window_size": s.config.WindowSize,
+		"hop_size":    s.config.HopSize,
+	})
+
 	// Extract frame-based energy using Energy algorithm
 	features.ShortTimeEnergy = s.energy.ComputeShortTimeEnergy(pcm)
+
+	s.logger.Info("Energy extraction result", logging.Fields{
+		"short_time_energy_length": len(features.ShortTimeEnergy),
+		"first_few_values": func() []float64 {
+			if len(features.ShortTimeEnergy) > 10 {
+				return features.ShortTimeEnergy[:10]
+			}
+			return features.ShortTimeEnergy
+		}(),
+	})
 
 	// Calculate energy variance using Energy algorithm
 	features.EnergyVariance = s.energy.ComputeEnergyVariance(features.ShortTimeEnergy)

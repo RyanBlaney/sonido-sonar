@@ -289,7 +289,7 @@ func (d *Decoder) DecodeURL(url string, duration time.Duration, streamType strin
 		)
 	case "hls":
 		args = append(args,
-			"-live_start_index", "-1", // Force latest segment
+			"-live_start_index", "-2", // Force latest segment
 		)
 	default:
 		// For unknown stream types, log a warning but continue

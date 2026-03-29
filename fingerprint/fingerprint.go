@@ -13,16 +13,17 @@ import (
 
 // AudioFingerprint represents a complete audio fingerprint
 type AudioFingerprint struct {
-	ID          string                        `json:"id"`
-	StreamURL   string                        `json:"stream_url"`
-	ContentType config.ContentType            `json:"content_type"`
-	Timestamp   time.Time                     `json:"timestamp"`
-	Duration    time.Duration                 `json:"duration"`
-	SampleRate  int                           `json:"sample_rate"`
-	HopSize     int                           `json:"hop_size"` // for alignment
-	Channels    int                           `json:"channels"`
-	Features    *extractors.ExtractedFeatures `json:"features"`
-	Metadata    map[string]any                `json:"metadata,omitempty"`
+	ID            string                        `json:"id"`
+	StreamURL     string                        `json:"stream_url"`
+	ContentType   config.ContentType            `json:"content_type"`
+	Timestamp     time.Time                     `json:"timestamp"`
+	Duration      time.Duration                 `json:"duration"`
+	SampleRate    int                           `json:"sample_rate"`
+	HopSize       int                           `json:"hop_size"` // for alignment
+	Channels      int                           `json:"channels"`
+	Features      *extractors.ExtractedFeatures `json:"features"`
+	Metadata      map[string]any                `json:"metadata,omitempty"`
+	FeatureConfig *config.FeatureConfig         `json:"feature_config"`
 }
 
 // FingerprintConfig holds configuration for fingerprint generation
@@ -50,6 +51,11 @@ func NewFingerprintGenerator(config *FingerprintConfig) *FingerprintGenerator {
 		config = DefaultFingerprintConfig()
 	}
 
+	if config.FeatureConfig == nil {
+		defaultConfig := DefaultFingerprintConfig()
+		config.FeatureConfig = defaultConfig.FeatureConfig
+	}
+
 	logger := logging.WithFields(logging.Fields{
 		"component": "fingerprint_generator",
 	})
@@ -68,9 +74,11 @@ func NewFingerprintGenerator(config *FingerprintConfig) *FingerprintGenerator {
 
 // DefaultFingerprintConfig return default fingerprint configuration
 func DefaultFingerprintConfig() *FingerprintConfig {
+	hopSize := 512
+	windowSize := 2048
 	return &FingerprintConfig{
 		WindowSize:          2048,
-		HopSize:             512,
+		HopSize:             hopSize,
 		EnableContentDetect: true,
 		FeatureConfig: &config.FeatureConfig{
 			EnableMFCC:             true,
@@ -88,6 +96,8 @@ func DefaultFingerprintConfig() *FingerprintConfig {
 				"chroma":   0.20,
 				"temporal": 0.15,
 			},
+			HopSize:    hopSize,
+			WindowSize: windowSize,
 		},
 		ContentConfig: &config.ContentAwareConfig{
 			EnableContentDetection: true,
@@ -168,18 +178,22 @@ func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioDa
 	generationConfig := fg.contentManager.GetGenerationConfig(contentType)
 
 	// Extract features using appropriate extractor
-	extractor, err := fg.extractorFactory.CreateExtractor(contentType, *generationConfig.FeatureConfig)
+	extractor, err := fg.extractorFactory.CreateExtractor(contentType, *fg.config.FeatureConfig)
 	if err != nil {
 		logger.Error(err, "Failed to create feature extractor")
 		return nil, err
 	}
 
-	windowSize := generationConfig.WindowSize
+	windowSize := fg.config.WindowSize
+	generationConfig.WindowSize = windowSize
 	generationConfig.FeatureConfig.WindowSize = windowSize
 
-	hopSize := generationConfig.HopSize
+	hopSize := fg.config.FeatureConfig.HopSize
+	generationConfig.HopSize = hopSize
 	generationConfig.FeatureConfig.HopSize = hopSize
-	windowType := generationConfig.FeatureConfig.WindowType
+
+	windowType := fg.config.FeatureConfig.WindowType
+	generationConfig.FeatureConfig.WindowType = windowType
 
 	logger.Debug("STFT Configuration", logging.Fields{
 		"window_size": windowSize,
@@ -212,16 +226,17 @@ func (fg *FingerprintGenerator) GenerateFingerprint(audioData *transcode.AudioDa
 
 	// Generate fingerprint
 	fingerprint := &AudioFingerprint{
-		ID:          generateID(audioData),
-		StreamURL:   audioData.Metadata.URL,
-		ContentType: contentType,
-		Timestamp:   time.Now(),
-		Duration:    calculateDuration(audioData),
-		SampleRate:  audioData.SampleRate,
-		HopSize:     fg.config.FeatureConfig.HopSize,
-		Channels:    audioData.Channels,
-		Features:    features,
-		Metadata:    make(map[string]any),
+		ID:            generateID(audioData),
+		StreamURL:     audioData.Metadata.URL,
+		ContentType:   contentType,
+		Timestamp:     time.Now(),
+		Duration:      calculateDuration(audioData),
+		SampleRate:    audioData.SampleRate,
+		HopSize:       fg.config.FeatureConfig.HopSize,
+		Channels:      audioData.Channels,
+		Features:      features,
+		Metadata:      make(map[string]any),
+		FeatureConfig: fg.config.FeatureConfig,
 	}
 
 	// Add metadata
